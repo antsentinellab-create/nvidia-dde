@@ -2,13 +2,14 @@ import os
 from openai import OpenAI
 import time
 import json
+from engine.loader import load_roles as _load_roles
 
 def get_client():
     """延遲初始化 OpenAI client，避免 import 時就需要 API key"""
     return OpenAI(
         api_key=os.environ.get("NVIDIA_API_KEY"),
         base_url="https://integrate.api.nvidia.com/v1",
-        timeout=120.0
+        timeout=300.0  # Phase B: 從 120.0 調整為 300.0 秒
     )
 
 SPEC = """
@@ -65,30 +66,8 @@ SPEC = """
   - 模擬 LLMGateway retry 3次 + Execution retry 5次，總計不超過 10
 """
 
-# ── 角色分工定義 ──────────────────────────────────────
-ROLES = [
-    {
-        "id": "deepseek-ai/deepseek-v3.2",
-        "name": "Risk-Analyst",
-        "system": "你是專精安全性與風險分析的資深架構師。請只輸出 JSON，不要任何說明文字。",
-        "focus_fields": ["risks", "verdict"],
-        "focus_desc": "主責 risks（含 level/issue/suggestion），若審查中發現重要的 missing 或 improvements 也可少量補充",
-    },
-    {
-        "id": "qwen/qwen3.5-397b-a17b",
-        "name": "Completeness-Reviewer",
-        "system": "你是專精需求完整性檢查的資深架構師。請只輸出 JSON，不要任何說明文字。",
-        "focus_fields": ["missing", "verdict"],
-        "focus_desc": "主責 missing（含 item/reason/how），若審查中發現重要的 risks 或 improvements 也可少量補充",
-    },
-    {
-        "id": "mistralai/mistral-large-3-675b-instruct-2512",
-        "name": "Improvement-Advisor",
-        "system": "你是專精架構改善建議的資深架構師。請只輸出 JSON，不要任何說明文字。",
-        "focus_fields": ["improvements", "good_points", "verdict"],
-        "focus_desc": "主責 improvements（含 area/current/better）與 good_points，若審查中發現重要的 risks 或 missing 也可少量補充",
-    },
-]
+# ── 角色分工定義（從 knowledge/roles/ 動態載入）──────────
+ROLES = _load_roles()
 
 AGGREGATOR_MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1"
 
@@ -181,37 +160,60 @@ def main():
         print("-" * 60)
 
         start = time.time()
-        try:
-            response = get_client().chat.completions.create(
-                model=role["id"],
-                messages=[
-                    {"role": "system", "content": role["system"]},
-                    {"role": "user",   "content": build_prompt(role)}
-                ],
-                temperature=0.3,
-                max_tokens=2048
-            )
-            elapsed = time.time() - start
-            raw     = get_content(response)
-            data, err = parse_json(raw)
+        success = False
+        last_error = None
+        
+        # 重試機制：最多重試 2 次，間隔 5 秒
+        for attempt in range(3):  # 1 次原始嘗試 + 2 次重試
+            try:
+                if attempt > 0:
+                    print(f"  重試 {attempt}/2...")
+                    time.sleep(5)  # 間隔 5 秒
+                
+                response = get_client().chat.completions.create(
+                    model=role["id"],
+                    messages=[
+                        {"role": "system", "content": role["system"]},
+                        {"role": "user",   "content": build_prompt(role)}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2048
+                )
+                elapsed = time.time() - start
+                raw     = get_content(response)
+                data, err = parse_json(raw)
 
-            results[role["name"]] = {
-                "data": data, "raw": raw,
-                "time": elapsed, "error": err
-            }
+                results[role["name"]] = {
+                    "data": data, "raw": raw,
+                    "time": elapsed, "error": err
+                }
 
-            if data:
-                fields = ", ".join(f"{k}:{len(v) if isinstance(v, list) else '✓'}" for k, v in data.items() if k != "verdict")
-                print(f"✅ {elapsed:.1f}s | {fields}")
-                print(f"   verdict: {data.get('verdict','')[:80]}...")
-            else:
-                print(f"⚠️  {elapsed:.1f}s | JSON 解析失敗：{err}")
-                print(f"   raw: {str(raw)[:100]}")
-
-        except Exception as e:
-            elapsed = time.time() - start
-            results[role["name"]] = {"data": None, "time": elapsed, "error": str(e)}
-            print(f"❌ {elapsed:.1f}s | {e}")
+                if data:
+                    fields = ", ".join(f"{k}:{len(v) if isinstance(v, list) else '✓'}" for k, v in data.items() if k != "verdict")
+                    print(f"✅ {elapsed:.1f}s | {fields}")
+                    print(f"   verdict: {data.get('verdict','')[:80]}...")
+                    success = True
+                else:
+                    print(f"⚠️  {elapsed:.1f}s | JSON 解析失敗：{err}")
+                    print(f"   raw: {str(raw)[:100]}")
+                    last_error = err
+                    
+                break  # 成功執行（無論 JSON 是否解析成功）
+                    
+            except Exception as e:
+                elapsed = time.time() - start
+                last_error = str(e)
+                if attempt < 2:  # 還沒到最後一次重試
+                    continue  # 繼續重試
+                else:  # 最終於失敗
+                    results[role["name"]] = {"data": None, "time": elapsed, "error": str(e)}
+                    print(f"❌ {elapsed:.1f}s | {e}")
+                    success = False
+        
+        if not success and last_error:
+            # 重試後仍失敗，記錄錯誤
+            if role["name"] not in results:
+                results[role["name"]] = {"data": None, "time": time.time() - start, "error": last_error}
 
     # ── Phase 2: 合併各專家結果 ────────────────────────────
     print(f"\n{'=' * 60}")

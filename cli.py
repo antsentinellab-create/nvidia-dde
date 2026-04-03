@@ -14,14 +14,14 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 import questionary
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 import json
 import sys
+import time
 
 # 引入現有引擎
-from design_decision_engine import SPEC, ROLES, AGGREGATOR_MODEL, build_prompt, get_content, parse_json, normalize, is_valid_output, get_client
+from design_decision_engine import SPEC, AGGREGATOR_MODEL, build_prompt, get_content, parse_json, normalize, is_valid_output, get_client
 from openai import OpenAI
 from engine.loader import load_roles
 
@@ -32,7 +32,6 @@ STYLE_PRIMARY = "#F39C12"      # 琥珀橙
 STYLE_BG = "#1A1A1B"           # 深炭黑
 STYLE_SECONDARY = "#D35400"    # 深橙
 
-DB_PATH = Path(__file__).parent / "db" / "history.db"
 
 
 def show_main_menu():
@@ -83,7 +82,7 @@ def add_new_review():
         
         if result:
             # 儲存至資料庫
-            save_review_to_db(project_name, result)
+            save_review(project_name, result)
             console.print(f"[green]✅ 審查完成！結果已儲存至資料庫。[/green]")
             
             # 顯示摘要
@@ -114,38 +113,61 @@ def run_design_review(spec: str) -> dict:
 
     
     results = {}
-    total = len(ROLES)
+    total = len(load_roles())
     
     # Phase 1: 各專家分工審查
     for i, role in enumerate(load_roles(), 1):
         console.print(f"[{i}/{total}] {role['name']} ({role['id'].split('/')[-1]})")
         
-        try:
-            response = get_client().chat.completions.create(
-                model=role["id"],
-                messages=[
-                    {"role": "system", "content": role["system"]},
-                    {"role": "user", "content": build_prompt(role)}
-                ],
-                temperature=0.3,
-                max_tokens=2048
-            )
-            raw = get_content(response)
-            data, err = parse_json(raw)
-            
-            results[role["name"]] = {
-                "data": data, "raw": raw,
-                "error": err
-            }
-            
-            if data:
-                console.print(f"  [green]✓[/green] {role['name']} 完成")
-            else:
-                console.print(f"  [yellow]⚠[/yellow] {role['name']} JSON 解析失敗")
+        success = False
+        last_error = None
+        
+        # 重試機制：最多重試 2 次，間隔 5 秒
+        for attempt in range(3):  # 1 次原始嘗試 + 2 次重試
+            try:
+                if attempt > 0:
+                    console.print(f"  [yellow]重試 {attempt}/2...[/yellow]")
+                    time.sleep(5)  # 間隔 5 秒
                 
-        except Exception as e:
-            console.print(f"  [red]✗[/red] {role['name']} 錯誤：{e}")
-            results[role["name"]] = {"data": None, "error": str(e)}
+                response = get_client().chat.completions.create(
+                    model=role["id"],
+                    messages=[
+                        {"role": "system", "content": role["system"]},
+                        {"role": "user", "content": build_prompt(role)}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2048
+                )
+                raw = get_content(response)
+                data, err = parse_json(raw)
+                
+                results[role["name"]] = {
+                    "data": data, "raw": raw,
+                    "error": err
+                }
+                
+                if data:
+                    console.print(f"  [green]✓[/green] {role['name']} 完成")
+                    success = True
+                else:
+                    console.print(f"  [yellow]⚠[/yellow] {role['name']} JSON 解析失敗")
+                    last_error = err
+                    
+                break  # 成功執行（無論 JSON 是否解析成功）
+                    
+            except Exception as e:
+                last_error = str(e)
+                if attempt < 2:  # 還沒到最後一次重試
+                    continue  # 繼續重試
+                else:  # 最終於失敗
+                    console.print(f"  [red]✗[/red] {role['name']} 錯誤：{e}")
+                    results[role["name"]] = {"data": None, "error": str(e)}
+                    success = False
+        
+        if not success and last_error:
+            # 重試後仍失敗，記錄錯誤
+            if role["name"] not in results:
+                results[role["name"]] = {"data": None, "error": last_error}
     
     # Phase 2: 合併各專家結果
     merged = {
@@ -227,65 +249,11 @@ def run_design_review(spec: str) -> dict:
         return merged
 
 
-def save_review_to_db(project_name: str, result_json: dict):
-    """
-    將審查結果儲存至資料庫
-    
-    Args:
-        project_name: 專案名稱
-        result_json: Aggregator 輸出的完整 JSON
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # 統計各等級風險數量
-    risks = result_json.get("risks", [])
-    risk_high = sum(1 for r in risks if r.get("level") == "high")
-    risk_medium = sum(1 for r in risks if r.get("level") == "medium")
-    risk_low = sum(1 for r in risks if r.get("level") == "low")
-    
-    # 裁決摘要
-    verdict = result_json.get("verdict", "")[:500]
-    
-    # 插入資料庫
-    cursor.execute("""
-        INSERT INTO reviews (project, reviewed_at, risk_high, risk_medium, risk_low, verdict, result_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        project_name,
-        datetime.utcnow().isoformat(),
-        risk_high,
-        risk_medium,
-        risk_low,
-        verdict,
-        json.dumps(result_json, ensure_ascii=False)
-    ))
-    
-    conn.commit()
-    conn.close()
-
-
 def view_history():
     """查看歷史記錄"""
     console.print(Panel("📊 歷史記錄查詢", style="bold white on #1A1A1B", border_style="#F39C12"))
     
-    if not DB_PATH.exists():
-        console.print("[red]❌ 資料庫尚未初始化。請先執行 'python db/init_db.py'[/red]")
-        return
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # 查詢最近 10 筆記錄
-    cursor.execute("""
-        SELECT id, project, reviewed_at, risk_high, risk_medium, risk_low, verdict
-        FROM reviews
-        ORDER BY reviewed_at DESC
-        LIMIT 10
-    """)
-    
-    rows = cursor.fetchall()
-    conn.close()
+    rows = get_recent_reviews(10)
     
     if not rows:
         console.print("[yellow]⚠️  尚無歷史記錄[/yellow]")
@@ -317,15 +285,260 @@ def view_history():
 
 def manage_knowledge_base():
     """管理知識庫"""
-    console.print(Panel("📚 知識庫管理", style="bold white on #1A1A1B", border_style="#F39C12"))
-    # TODO: Phase B 實現知識庫管理功能
-    console.print("[yellow]⚠️  此功能將於 Phase B 實現[/yellow]")
-    console.print("\n未來將支援：")
-    console.print("  - 📄 檢視角色設定")
-    console.print("  - 📝 編輯公司規範模板")
-    console.print("  - 📥 匯入/匯出風險模板")
-    console.print("\n目前知識庫位置：")
-    console.print(f"  [cyan]{Path(__file__).parent / 'knowledge'}[/cyan]")
+    while True:
+        console.print(Panel("📚 知識庫管理", style="bold white on #1A1A1B", border_style="#F39C12"))
+        
+        choice = questionary.select(
+            "請選擇功能：",
+            choices=[
+                questionary.Choice("[3-1] 📄 檢視所有角色設定", value="1"),
+                questionary.Choice("[3-2] ✏️  編輯角色 Prompt", value="2"),
+                questionary.Choice("[3-3] 📥 匯入公司設計規範", value="3"),
+                questionary.Choice("[3-4] ⚠️  檢視風險模板", value="4"),
+                questionary.Choice("[3-5] ➕ 新增風險模板", value="5"),
+                questionary.Choice("[B] 🔙 返回主選單", value="b"),
+            ],
+            style=[("selected", "#F39C12 bold")]
+        ).ask()
+        
+        if choice == "1":
+            # [3-1] 檢視所有角色設定
+            view_all_roles()
+        elif choice == "2":
+            # [3-2] 編輯角色 Prompt
+            edit_role_prompt()
+        elif choice == "3":
+            # [3-3] 匯入公司設計規範
+            import_design_standard()
+        elif choice == "4":
+            # [3-4] 檢視風險模板
+            view_risk_templates()
+        elif choice == "5":
+            # [3-5] 新增風險模板
+            add_new_risk_template()
+        elif choice and choice.lower() == "b":
+            break
+
+
+def view_all_roles():
+    """檢視所有角色設定"""
+    console.print(Panel("📄 檢視所有角色設定", style="bold white on #1A1A1B", border_style="#F39C12"))
+    
+    roles = load_roles()
+    for i, role in enumerate(roles, 1):
+        console.print(f"\n[bold #F39C12]【{i}. {role['name']}】[/bold #F39C12]")
+        console.print(f"  ID: {role['id']}")
+        console.print(f"  System Prompt:")
+        console.print(f"    [dim]{role['system'][:200]}{'...' if len(role['system']) > 200 else ''}[/dim]")
+        console.print(f"  主責欄位：{role.get('focus_desc', 'N/A')}")
+    
+    console.print(f"\n[yellow]共 {len(roles)} 個角色[/yellow]")
+
+
+def edit_role_prompt():
+    """編輯角色 Prompt"""
+    console.print(Panel("✏️  編輯角色 Prompt", style="bold white on #1A1A1B", border_style="#F39C12"))
+    
+    roles = load_roles()
+    role_names = [f"{i}. {role['name']} ({role['id'].split('/')[-1]})" for i, role in enumerate(roles, 1)]
+    
+    choice = questionary.select(
+        "選擇要編輯的角色：",
+        choices=role_names + ["🔙 返回上層"],
+        style=[("selected", "#F39C12 bold")]
+    ).ask()
+    
+    if not choice or choice == "🔙 返回上層":
+        return
+    
+    # 解析選擇的角色索引
+    idx = int(choice.split(".")[0].strip()) - 1
+    role = roles[idx]
+    
+    # 顯示當前 prompt
+    console.print(f"\n[bold #F39C12]當前 System Prompt:[/bold #F39C12]")
+    console.print(f"{role['system']}")
+    
+    # 詢問是否備份
+    if questionary.confirm("是否先備份原檔案？（推薦）").ask():
+        kb_path = Path(__file__).parent / "knowledge" / "roles"
+        role_filename_map = {
+            "Risk-Analyst": "risk_analyst",
+            "Completeness-Reviewer": "completeness_reviewer",
+            "Improvement-Advisor": "improvement_advisor",
+        }
+        base_name = role_filename_map.get(role["name"], role["id"].split("/")[-1])
+        backup_file = f"{base_name}.json.bak"
+        src = kb_path / f"{base_name}.json"
+        dst = kb_path / backup_file
+        if src.exists():
+            shutil.copy2(src, dst)
+            console.print(f"[green]✅ 已備份至 {backup_file}[/green]")
+    
+    # 輸入新的 prompt
+    new_system = questionary.text(
+        "請輸入新的 System Prompt：",
+        default=role['system']
+    ).ask()
+    
+    if not new_system:
+        console.print("[red]❌ Prompt 不能為空[/red]")
+        return
+    
+    # 確認修改
+    if not questionary.confirm(f"確定要修改 {role['name']} 的 Prompt 嗎？").ask():
+        return
+    
+    # 更新角色資料
+    role['system'] = new_system
+    role_filename_map = {
+        "Risk-Analyst": "risk_analyst",
+        "Completeness-Reviewer": "completeness_reviewer",
+        "Improvement-Advisor": "improvement_advisor",
+    }
+    base_name = role_filename_map.get(role["name"], role["id"].split("/")[-1])
+    filename = f"{base_name}.json"
+
+    try:
+        save_role(filename, role)
+        console.print(f"[green]✅ 成功更新 {role['name']} 的 Prompt[/green]")
+    except Exception as e:
+        console.print(f"[red]❌ 更新失敗：{e}[/red]")
+
+
+def import_design_standard():
+    """匯入公司設計規範"""
+    console.print(Panel("📥 匯入公司設計規範", style="bold white on #1A1A1B", border_style="#F39C12"))
+    
+    # 選擇檔案類型
+    file_type = questionary.select(
+        "選擇檔案類型：",
+        choices=[
+            questionary.Choice("*.md (Markdown)", value=".md"),
+            questionary.Choice("*.txt (純文字)", value=".txt"),
+        ],
+        style=[("selected", "#F39C12 bold")]
+    ).ask()
+    
+    # 輸入檔案路徑
+    file_path_str = questionary.text(
+        "請輸入檔案絕對路徑或相對路徑："
+    ).ask()
+    
+    if not file_path_str:
+        console.print("[red]❌ 未輸入檔案路徑[/red]")
+        return
+    
+    # 驗證檔案
+    src_path = FilePath(file_path_str)
+    if not src_path.exists():
+        console.print(f"[red]❌ 找不到檔案：{src_path}[/red]")
+        return
+    
+    if not src_path.name.endswith(file_type):
+        console.print(f"[red]❌ 檔案類型不符，需要 {file_type}[/red]")
+        return
+    
+    # 檢查大小
+    file_size = src_path.stat().st_size
+    if file_size > 1 * 1024 * 1024:  # 1MB
+        console.print(f"[red]❌ 檔案過大（{file_size / 1024 / 1024:.2f}MB），上限 1MB[/red]")
+        return
+    
+    # 複製到 standards 目錄
+    standards_dir = Path(__file__).parent / "knowledge" / "standards"
+    standards_dir.mkdir(parents=True, exist_ok=True)
+    
+    dst_path = standards_dir / src_path.name
+    
+    # 檢查是否已存在
+    if dst_path.exists():
+        if not questionary.confirm(f"⚠️  目標檔案已存在，是否覆蓋？ {dst_path.name}").ask():
+            return
+    
+    try:
+        shutil.copy2(src_path, dst_path)
+        console.print(f"[green]✅ 成功匯入 {src_path.name} 至 knowledge/standards/[/green]")
+        console.print(f"   大小：{file_size / 1024:.2f} KB")
+    except Exception as e:
+        console.print(f"[red]❌ 匯入失敗：{e}[/red]")
+
+
+def view_risk_templates():
+    """檢視風險模板"""
+    console.print(Panel("⚠️  檢視風險模板", style="bold white on #1A1A1B", border_style="#F39C12"))
+    
+    templates = load_risk_templates()
+    
+    if not templates:
+        console.print("[yellow]⚠️  尚無風險模板[/yellow]")
+        return
+    
+    for i, tpl in enumerate(templates, 1):
+        data = tpl['data']
+        console.print(f"\n[bold #F39C12]【{i}. {tpl['filename']}】[/bold #F39C12]")
+        console.print(f"  Level: {data.get('level', 'N/A')}")
+        console.print(f"  Issue: {data.get('issue', 'N/A')[:100]}{'...' if len(str(data.get('issue', ''))) > 100 else ''}")
+        console.print(f"  Suggestion: {data.get('suggestion', 'N/A')[:100]}{'...' if len(str(data.get('suggestion', ''))) > 100 else ''}")
+    
+    console.print(f"\n[yellow]共 {len(templates)} 個風險模板[/yellow]")
+
+
+def add_new_risk_template():
+    """新增風險模板"""
+    console.print(Panel("➕ 新增風險模板", style="bold white on #1A1A1B", border_style="#F39C12"))
+    
+    # 互動式填寫
+    level = questionary.select(
+        "風險等級：",
+        choices=[
+            questionary.Choice("🔴 High (高風險)", value="high"),
+            questionary.Choice("🟡 Medium (中風險)", value="medium"),
+            questionary.Choice("🟢 Low (低風險)", value="low"),
+        ],
+        style=[("selected", "#F39C12 bold")]
+    ).ask()
+    
+    issue = questionary.text(
+        "問題描述：",
+        multiline=True
+    ).ask()
+    
+    if not issue:
+        console.print("[red]❌ 問題描述不能為空[/red]")
+        return
+    
+    suggestion = questionary.text(
+        "具體建議：",
+        multiline=True
+    ).ask()
+    
+    if not suggestion:
+        console.print("[red]❌ 建議不能為空[/red]")
+        return
+    
+    # 模板名稱
+    template_name = questionary.text(
+        "請輸入模板名稱（英文，不含副檔名）：",
+        pattern=r'^[a-zA-Z0-9_-]+$'
+    ).ask()
+    
+    if not template_name:
+        console.print("[red]❌ 模板名稱不能為空[/red]")
+        return
+    
+    # 建立資料
+    template_data = {
+        "level": level,
+        "issue": issue,
+        "suggestion": suggestion
+    }
+    
+    try:
+        saved_path = save_risk_template(template_name, template_data)
+        console.print(f"[green]✅ 成功儲存風險模板：{saved_path.name}[/green]")
+    except Exception as e:
+        console.print(f"[red]❌ 儲存失敗：{e}[/red]")
 
 
 def main():

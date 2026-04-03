@@ -138,6 +138,130 @@ def load_roles() -> List[Dict]:
     return roles
 
 
+def save_role(filename: str, data: Dict) -> Path:
+    """
+    儲存角色設定至 knowledge/roles/
+    
+    Args:
+        filename: 檔案名稱（不含路徑），例如 'risk_analyst.json'
+        data: 角色設定字典
+        
+    Returns:
+        Path: 儲存的檔案路徑
+        
+    Raises:
+        ValueError: 若檔案名稱無效
+    """
+    if not filename.endswith('.json'):
+        raise ValueError("角色檔案必須以 .json 結尾")
+    
+    roles_dir = get_knowledge_base_path() / "roles"
+    role_path = roles_dir / filename
+    
+    # 確保目錄存在
+    roles_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 寫入 JSON
+    with open(role_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    return role_path
+
+
+def load_standards() -> List[Dict[str, str]]:
+    """
+    讀取 knowledge/standards/ 所有 .md/.txt 檔案
+    
+    Returns:
+        List[Dict]: 規範列表，每個元素包含 {'filename': str, 'content': str}
+    """
+    standards_dir = get_knowledge_base_path() / "standards"
+    
+    if not standards_dir.exists():
+        print(f"⚠️  警告：找不到 standards 目錄 {standards_dir}")
+        return []
+    
+    standards = []
+    # 分別處理 .md 和 .txt 檔案（避免 glob pattern 相容性問題）
+    for pattern in ["*.md", "*.txt"]:
+        for file_path in standards_dir.glob(pattern):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    standards.append({
+                        'filename': file_path.name,
+                        'content': content
+                    })
+            except Exception as e:
+                print(f"⚠️  讀取規範檔案 {file_path.name} 失敗：{e}")
+    
+    return standards
+
+
+def load_risk_templates() -> List[Dict]:
+    """
+    讀取 knowledge/risk_templates/ 所有 .json 檔案
+    
+    Returns:
+        List[Dict]: 風險模板列表，每個元素包含 {'filename': str, 'data': Dict}
+    """
+    templates_dir = get_knowledge_base_path() / "risk_templates"
+    
+    if not templates_dir.exists():
+        print(f"⚠️  警告：找不到 risk_templates 目錄 {templates_dir}")
+        return []
+    
+    templates = []
+    for file_path in templates_dir.glob("*.json"):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                templates.append({
+                    'filename': file_path.name,
+                    'data': data
+                })
+        except Exception as e:
+            print(f"⚠️  讀取風險模板 {file_path.name} 失敗：{e}")
+    
+    return templates
+
+
+def save_risk_template(name: str, data: Dict) -> Path:
+    """
+    儲存風險模板至 knowledge/risk_templates/
+    
+    Args:
+        name: 模板名稱（不含副檔名）
+        data: 風險模板字典，應包含 level/issue/suggestion
+        
+    Returns:
+        Path: 儲存的檔案路徑
+        
+    Raises:
+        ValueError: 若模板名稱無效或資料結構不正確
+    """
+    if not name or '/' in name or '\\' in name:
+        raise ValueError("無效的模板名稱")
+    
+    # 驗證基本結構
+    required_keys = ['level', 'issue', 'suggestion']
+    for key in required_keys:
+        if key not in data:
+            raise ValueError(f"風險模板缺少必要欄位：{key}")
+    
+    templates_dir = get_knowledge_base_path() / "risk_templates"
+    template_path = templates_dir / f"{name}.json"
+    
+    # 確保目錄存在
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 寫入 JSON
+    with open(template_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    return template_path
+
+
 if __name__ == "__main__":
     # 測試用
     print("測試載入角色...")
