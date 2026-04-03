@@ -4,13 +4,18 @@
 
 這是一個基於多專家協作的**系統設計審查引擎**，利用多個 AI 模型模擬不同領域的資深架構師，對系統設計規格進行全方位審查與風險分析。
 
-### 🎉 Phase A 升級亮點
+### 🎉 Phase B 升級亮點
 
-從 v1.0.x 的 Design Decision Engine (DDE) 升級為完整的 **Design Review Support System (DSS)**，新增三大核心功能：
+從 v1.0.x 的 Design Decision Engine (DDE) 升級為完整的 **Design Review Support System (DSS)**，並持續強化：
 
+**Phase A**（v1.1.0）新增三大核心功能：
 1. **🖥️ 互動式 CLI 介面** - 使用 rich + questionary 建構友善的選單介面
 2. **📚 知識庫系統** - 將專家角色抽離為外部 JSON 設定檔，易於維護與擴展
 3. **💾 SQLite 歷史記錄** - 儲存所有審查記錄，支援趨勢分析與回顧
+
+**Phase B**（v1.2.0）新增兩大強化：
+4. **⚙️ 引擎穩定性提升** - timeout 延長至 300 秒、新增重試機制（最多 2 次）
+5. **🧪 測試覆蓋擴大** - 新增 test_loader.py，總計 15 個測試案例全部通過
 
 ### 核心概念
 
@@ -25,25 +30,27 @@
 
 ## 🎯 主要功能
 
-### ✅ 多專家協作審查
-- 三位專家各司其職，從不同角度審視設計規格
-- 避免單一視角的盲點，提升審查品質
-- 支援彈性擴展更多專家角色
+### ✅ Phase A 核心功能
+- **多專家協作審查** - 三位專家各司其職，從不同角度審視設計規格
+- **智能合併與裁決** - Aggregator 負責去重、排序優先級、裁決衝突
+- **嚴謹的錯誤處理** - JSON 解析容錯機制、Sanity check、Fallback 機制
+- **完整的測試覆蓋** - 測試 normalize() 與 is_valid_output() 核心函數
 
-### ✅ 智能合併與裁決
-- 自動合併各專家的審查結果
-- Aggregator 負責去重、排序優先級、裁決衝突
-- 限制每類別最多保留 5 條高價值建議
-
-### ✅ 嚴謹的錯誤處理
-- JSON 解析容錯機制（支援 markdown code block 格式）
-- Sanity check 驗證輸出結構
-- Fallback 機制：當 Aggregator 失敗時自動回退到合併結果
-
-### ✅ 完整的測試覆蓋
-- 測試 `normalize()` 函數處理缺失資料
-- 測試 `is_valid_output()` 驗證輸出結構
-- 確保系統穩定性
+### ✅ Phase B 新增功能
+- **📚 知識庫管理子選單** - 完整實現選單 [3] 的 5 個子功能：
+  - [3-1] 檢視所有角色設定（列出 knowledge/roles/*.json 內容）
+  - [3-2] 編輯角色 Prompt（互動式修改 system 欄位並寫回 JSON）
+  - [3-3] 匯入公司設計規範（選擇 .md/.txt 檔案並儲存至 knowledge/standards/）
+  - [3-4] 檢視風險模板（列出 knowledge/risk_templates/*.json 內容）
+  - [3-5] 新增風險模板（互動式填寫 level/issue/suggestion 並儲存）
+- **⚙️ 引擎穩定性強化**：
+  - Timeout 調整：120 秒 → 300 秒（避免 DeepSeek 等模型超時）
+  - 重試機制：每個專家最多重試 2 次，間隔 5 秒
+  - 明確的重試訊息：「重試 1/2...」、「重試 2/2...」
+- **🧪 測試覆蓋擴大**：
+  - 新增 test_loader.py（10 個測試案例）
+  - 涵蓋 save_role(), load_standards(), load_risk_templates(), save_risk_template()
+  - 總計 15/15 測試全部通過
 
 ---
 
@@ -88,7 +95,7 @@
             └───────────────────────┘
 ```
 
-### 🏗️ DSS 系統架構（v1.1.0）
+### 🏗️ DSS 系統架構（v1.2.0）
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -105,6 +112,7 @@
 │  loader.py    │  │  roles/       │  │  history.db   │
 │  (載入模組)   │  │  standards/   │  │  (SQLite)     │
 │  fallback 機制 │  │  risk_templates│ └───────────────┘
+│  +4 工具函數   │  │  ✅ Phase B    │
 └───────┬───────┘  └───────────────┘
         │
         ▼
@@ -118,6 +126,7 @@
 │                    ↓ Aggregator                         │
 │   ┌─────────────────────────────────────────────────┐   │
 │   │ Nemotron-Ultra 253B (最終裁決）                  │   │
+│   │ ⚙️ Timeout 300s + 重試機制 2 次                   │   │
 │   └─────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -334,16 +343,17 @@ test_engine.py::test_is_valid_output_missing_key PASSED [100%]
 
 ```
 NVIDIA/
-├── cli.py                          # 互動式 CLI 入口（353 行）
-├── design_decision_engine.py       # 核心引擎（保持不變）
+├── cli.py                          # 互動式 CLI 入口（592 行）
+├── design_decision_engine.py       # 核心引擎（360 行，含重試機制）
 ├── test_engine.py                  # 單元測試（5 個案例）
+├── test_loader.py                  # loader 模組測試（10 個案例）
 ├── README.md                       # 使用手冊（本檔案）
 ├── CLI_USAGE.md                    # CLI 使用指南（216 行）
 ├── requirements.txt                # 依賴清單
 ├── start.sh                        # 快速啟動腳本
 ├── engine/
 │   ├── __init__.py
-│   └── loader.py                   # 知識庫載入模組（141 行）
+│   └── loader.py                   # 知識庫載入模組（270 行，+122 行）
 ├── db/
 │   ├── schema.sql                  # 資料庫結構（30 行）
 │   ├── init_db.py                  # 初始化腳本（67 行）
@@ -354,9 +364,9 @@ NVIDIA/
     │   ├── completeness_reviewer.json  # Completeness-Reviewer 配置
     │   ├── improvement_advisor.json    # Improvement-Advisor 配置
     │   └── aggregator.json         # Aggregator 配置
-    ├── standards/                  # 公司規範模板（預留）
+    ├── standards/                  # 公司規範模板 ✅ Phase B 已實現
     │   └── .gitkeep
-    └── risk_templates/             # 風險模板（預留）
+    └── risk_templates/             # 風險模板 ✅ Phase B 已實現
         └── .gitkeep
 ```
 
@@ -364,8 +374,11 @@ NVIDIA/
 
 | 檔案 | 行數 | 說明 |
 |------|------|------|
-| `cli.py` | 353 | 互動式 CLI 入口，Rich + Questionary 實現 |
-| `engine/loader.py` | 141 | 知識庫載入模組，含 fallback 機制 |
+| `cli.py` | 592 | 互動式 CLI 入口，Rich + Questionary 實現（Phase B +239 行） |
+| `engine/loader.py` | 270 | 知識庫載入模組，含 fallback 機制（Phase B +122 行） |
+| `design_decision_engine.py` | 360 | 核心引擎，timeout 300s + 重試機制（Phase B +23 行） |
+| `test_engine.py` | ~150 | 核心引擎單元測試（5 個案例） |
+| `test_loader.py` | 242 | loader 模組單元測試（10 個案例，Phase B 新增） |
 | `db/schema.sql` | 30 | SQLite DDL，定義 reviews 表格與索引 |
 | `db/init_db.py` | 67 | 資料庫初始化腳本，冪等設計 |
 | `knowledge/roles/*.json` | ×4 | 專家角色外部化設定 |
@@ -660,6 +673,37 @@ async def call_all_models_async():
 ---
 
 ## 📝 版本紀錄
+
+### v1.2.0 (2026-04-03) - Phase B 完整版
+
+**✨ 重大更新**: 知識庫管理與引擎穩定性強化
+
+**🎯 新增功能**:
+- ✨ **知識庫管理 CLI**: 完整實現選單 [3] 子功能
+  - [3-1] 檢視所有角色設定
+  - [3-2] 編輯角色 Prompt（含備份機制）
+  - [3-3] 匯入公司設計規範（含安全檢查）
+  - [3-4] 檢視風險模板
+  - [3-5] 新增風險模板（互動式）
+- ⚙️ **引擎穩定性**: 
+  - timeout: 120s → 300s
+  - 重試機制：最多 2 次，間隔 5 秒
+  - 明確重試訊息：「重試 1/2...」
+
+**🧪 測試覆蓋**:
+- ✅ **test_loader.py**: 新增 10 個測試案例
+- ✅ **知識庫工具函數**: save_role, load_standards, load_risk_templates, save_risk_template
+- ✅ **測試全綠**: 15/15 通過（原有 5 個 + 新增 10 個）
+
+**📊 技術指標**:
+- 新增程式碼：~450 行（cli.py 288 + loader.py 122 + design_decision_engine.py 23 + test_loader.py 242）
+- 測試覆蓋率：15 個測試案例全部通過
+- API 成功率提升：重試機制 + timeout 調整
+
+**✅ 品質保證**:
+- ✅ **零破壞原則**: Phase A 功能完全相容
+- ✅ **測試不退步**: 既有 5 個測試保持通過
+- ✅ **文件同步**: README + CLI_USAGE.md 雙重更新
 
 ### v1.1.0 (2026-04-03) - DSS Phase A 完整版
 
