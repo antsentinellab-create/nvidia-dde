@@ -109,6 +109,20 @@
 pip install openai pytest
 ```
 
+### 安裝依賴套件
+
+```bash
+# 使用專案虛擬環境
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**依賴清單：**
+- `openai==2.30.0` - NVIDIA API 客戶端
+- `pytest==9.0.2` - 單元測試框架
+- `rich>=13.0` - CLI 美化工具
+- `questionary>=2.0` - 互動式選單
+
 ### API 金鑰設定
 
 在 [`design_decision_engine.py`](design_decision_engine.py) 中已內建 NVIDIA API 金鑰：
@@ -127,7 +141,26 @@ client = OpenAI(
 
 ## 🚀 使用方式
 
-### 執行設計審查
+### 互動式 CLI（推薦）
+
+從 v1.1.0 開始，提供互動式 CLI 介面，更友善的使用體驗！
+
+```bash
+# 設定環境變數
+export NVIDIA_API_KEY="nvapi-YOUR_API_KEY_HERE"
+
+# 啟動 CLI
+source .venv/bin/activate
+python cli.py
+```
+
+**CLI 選單功能：**
+- `[1] 🔍 新增審查` - 執行新的設計審查
+- `[2] 📊 查歷史記錄` - 查看過往審查記錄
+- `[3] 📚 管理知識庫` - 管理知識庫（Phase A 預覽）
+- `[Q] 🚪 退出系統` - 離開系統
+
+### 執行設計審查（傳統模式）
 
 ```bash
 # 使用專案虛擬環境
@@ -451,6 +484,18 @@ async def call_all_models_async():
 ---
 
 ## 📝 版本紀錄
+
+### v1.1.0 (2026-04-03) - DSS Phase A 完整版
+- ✨ **新增互動式 CLI**：使用 rich + questionary 建構友善介面
+- 🎯 **選單功能**：[1] 新增審查、[2] 查歷史記錄、[3] 管理知識庫、[Q] 退出
+- 📚 **知識庫系統**：將 ROLES 抽離為 `knowledge/roles/*.json`
+- 💾 **SQLite 資料庫**：建立 `db/history.db` 儲存審查歷史
+- 🔧 **載入模組**：新增 `engine/loader.py` 支援 fallback 機制
+- 🎨 **暖感工業風格**：深炭黑 (#1A1A1B) + 琥珀橙 (#F39C12)
+- 📄 **快速啟動腳本**：新增 `start.sh`
+- 📖 **CLI 使用指南**：新增 `CLI_USAGE.md`
+- ✅ **測試不退步**：原有 5 個測試案例全部通過
+- 📦 **依賴管理**：新增 `requirements.txt`
 
 ### v1.0.1 (2026-04-03) - 修正版
 - ✨ 更新效能指標：單次執行時間修正為 150-500 秒

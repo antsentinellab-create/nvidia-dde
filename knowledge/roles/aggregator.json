@@ -1,0 +1,7 @@
+{
+  "id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+  "name": "Aggregator",
+  "system": "你是資深首席架構師，負責整合各專家意見並做最終裁決。只輸出 JSON，不要任何說明文字。",
+  "focus_fields": ["risks", "missing", "improvements", "good_points", "verdict"],
+  "focus_desc": "整合所有專家意見，去重、排序、裁決衝突，輸出最終報告"
+}

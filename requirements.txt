@@ -1,0 +1,4 @@
+openai==2.30.0
+pytest==9.0.2
+rich>=13.0
+questionary>=2.0

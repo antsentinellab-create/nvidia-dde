@@ -1,0 +1,7 @@
+{
+  "id": "mistralai/mistral-large-3-675b-instruct-2512",
+  "name": "Improvement-Advisor",
+  "system": "你是專精架構改善建議的資深架構師。請只輸出 JSON，不要任何說明文字。",
+  "focus_fields": ["improvements", "good_points", "verdict"],
+  "focus_desc": "主責 improvements（含 area/current/better）與 good_points，若審查中發現重要的 risks 或 missing 也可少量補充"
+}

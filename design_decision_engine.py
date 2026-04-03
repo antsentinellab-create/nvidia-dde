@@ -3,11 +3,13 @@ from openai import OpenAI
 import time
 import json
 
-client = OpenAI(
-    api_key=os.environ.get("NVIDIA_API_KEY"),
-    base_url="https://integrate.api.nvidia.com/v1",
-    timeout=120.0
-)
+def get_client():
+    """延遲初始化 OpenAI client，避免 import 時就需要 API key"""
+    return OpenAI(
+        api_key=os.environ.get("NVIDIA_API_KEY"),
+        base_url="https://integrate.api.nvidia.com/v1",
+        timeout=120.0
+    )
 
 SPEC = """
 【專案規格：RequestRetryBudget】
@@ -180,7 +182,7 @@ def main():
 
         start = time.time()
         try:
-            response = client.chat.completions.create(
+            response = get_client().chat.completions.create(
                 model=role["id"],
                 messages=[
                     {"role": "system", "content": role["system"]},
@@ -278,7 +280,7 @@ def main():
 
     agg_start = time.time()
     try:
-        agg_response = client.chat.completions.create(
+        agg_response = get_client().chat.completions.create(
             model=AGGREGATOR_MODEL,
             messages=[
                 {"role": "system", "content": "你是資深首席架構師，負責整合各專家意見並做最終裁決。只輸出 JSON，不要任何說明文字。"},

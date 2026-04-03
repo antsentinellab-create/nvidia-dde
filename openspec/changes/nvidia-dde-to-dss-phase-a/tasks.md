@@ -3,10 +3,10 @@
 ## 階段 A.1: 建立知識庫結構 (預計 1 小時)
 
 ### Task 1.1: 建立 knowledge 目錄樹
-- [ ] 建立 `knowledge/roles/` 目錄
-- [ ] 建立 `knowledge/standards/` 目錄
-- [ ] 建立 `knowledge/risk_templates/` 目錄
-- [ ] 在 `standards/` 與 `risk_templates/` 建立 `.gitkeep` 檔案
+- [x] 建立 `knowledge/roles/` 目錄
+- [x] 建立 `knowledge/standards/` 目錄
+- [x] 建立 `knowledge/risk_templates/` 目錄
+- [x] 在 `standards/` 與 `risk_templates/` 建立 `.gitkeep` 檔案
 
 **驗收條件**:
 ```bash
@@ -21,9 +21,9 @@ tree knowledge/
 ```
 
 ### Task 1.2: 匯出 Risk-Analyst 角色設定
-- [ ] 從 `design_decision_engine.py` 的 `ROLES[0]` 複製內容
-- [ ] 建立 `knowledge/roles/risk_analyst.json`
-- [ ] 驗證 JSON 格式正確
+- [x] 從 `design_decision_engine.py` 的 `ROLES[0]` 複製內容
+- [x] 建立 `knowledge/roles/risk_analyst.json`
+- [x] 驗證 JSON 格式正確
 
 **檔案內容**:
 ```json
@@ -37,19 +37,19 @@ tree knowledge/
 ```
 
 ### Task 1.3: 匯出 Completeness-Reviewer 角色設定
-- [ ] 從 `design_decision_engine.py` 的 `ROLES[1]` 複製內容
-- [ ] 建立 `knowledge/roles/completeness_reviewer.json`
-- [ ] 驗證 JSON 格式正確
+- [x] 從 `design_decision_engine.py` 的 `ROLES[1]` 複製內容
+- [x] 建立 `knowledge/roles/completeness_reviewer.json`
+- [x] 驗證 JSON 格式正確
 
 ### Task 1.4: 匯出 Improvement-Advisor 角色設定
-- [ ] 從 `design_decision_engine.py` 的 `ROLES[2]` 複製內容
-- [ ] 建立 `knowledge/roles/improvement_advisor.json`
-- [ ] 驗證 JSON 格式正確
+- [x] 從 `design_decision_engine.py` 的 `ROLES[2]` 複製內容
+- [x] 建立 `knowledge/roles/improvement_advisor.json`
+- [x] 驗證 JSON 格式正確
 
 ### Task 1.5: 建立 Aggregator 角色設定
-- [ ] 從 `design_decision_engine.py` 提取 `AGGREGATOR_MODEL` 常數
-- [ ] 參考 `main()` 中的 Aggregator prompt
-- [ ] 建立 `knowledge/roles/aggregator.json`
+- [x] 從 `design_decision_engine.py` 提取 `AGGREGATOR_MODEL` 常數
+- [x] 參考 `main()` 中的 Aggregator prompt
+- [x] 建立 `knowledge/roles/aggregator.json`
 
 **檔案內容**:
 ```json
@@ -63,18 +63,18 @@ tree knowledge/
 ```
 
 ### Task 1.6: 驗證知識庫完整性
-- [ ] 使用 `jq` 或 Python 驗證所有 JSON 檔案格式
-- [ ] 確認 4 個角色檔案都存在
-- [ ] 執行一次 `pytest test_engine.py -v` 確保未破壞現有功能
+- [x] 使用 `jq` 或 Python 驗證所有 JSON 檔案格式
+- [x] 確認 4 個角色檔案都存在
+- [x] 執行一次 `pytest test_engine.py -v` 確保未破壞現有功能
 
 ---
 
 ## 階段 A.2: 建立載入模組 (預計 0.5 小時)
 
 ### Task 2.1: 建立 engine/loader.py
-- [ ] 建立 `engine/` 目錄
-- [ ] 建立 `engine/__init__.py`（空檔案）
-- [ ] 建立 `engine/loader.py`
+- [x] 建立 `engine/` 目錄
+- [x] 建立 `engine/__init__.py`（空檔案）
+- [x] 建立 `engine/loader.py`
 
 **核心函數**:
 - `get_knowledge_base_path() -> Path`
@@ -82,9 +82,9 @@ tree knowledge/
 - `load_roles() -> List[Dict]`
 
 ### Task 2.2: 實作 fallback 機制
-- [ ] 在 `loader.py` 中定義 `BUILTIN_ROLES` 常數
-- [ ] 實作檔案讀取失敗時的 fallback 邏輯
-- [ ] 新增適當的警告訊息（使用 `print` 或 `warnings`）
+- [x] 在 `loader.py` 中定義 `BUILTIN_ROLES` 常數
+- [x] 實作檔案讀取失敗時的 fallback 邏輯
+- [x] 新增適當的警告訊息（使用 `print` 或 `warnings`）
 
 ### Task 2.3: 編寫 loader 單元測試
 - [ ] 建立 `test_loader.py`
@@ -107,19 +107,19 @@ def test_load_roles_fallback():
 ```
 
 ### Task 2.4: 文件與註解
-- [ ] 為所有公開函數新增 docstring
-- [ ] 新增型別提示（type hints）
-- [ ] 註解關鍵邏輯
+- [x] 為所有公開函數新增 docstring
+- [x] 新增型別提示（type hints）
+- [x] 註解關鍵邏輯
 
 ---
 
 ## 階段 A.3: 建立資料庫模組 (預計 0.5 小時)
 
 ### Task 3.1: 建立 db/schema.sql
-- [ ] 建立 `db/` 目錄
-- [ ] 建立 `db/schema.sql`
-- [ ] 定義 `reviews` 表格結構
-- [ ] 建立索引與觸發程序
+- [x] 建立 `db/` 目錄
+- [x] 建立 `db/schema.sql`
+- [x] 定義 `reviews` 表格結構
+- [x] 建立索引與觸發程序
 
 **SQL 內容**:
 ```sql
@@ -139,10 +139,10 @@ CREATE INDEX IF NOT EXISTS idx_reviews_project ON reviews(project);
 ```
 
 ### Task 3.2: 建立 db/init_db.py
-- [ ] 建立 `db/init_db.py`
-- [ ] 實作 `init_database()` 函數
-- [ ] 讀取並執行 `schema.sql`
-- [ ] 新增執行結果回報（成功/失敗訊息）
+- [x] 建立 `db/init_db.py`
+- [x] 實作 `init_database()` 函數
+- [x] 讀取並執行 `schema.sql`
+- [x] 新增執行結果回報（成功/失敗訊息）
 
 **測試方式**:
 ```bash
@@ -167,19 +167,19 @@ sqlite3 db/history.db "SELECT * FROM reviews;"
 ## 階段 A.4: 建立互動式 CLI (預計 2 小時)
 
 ### Task 4.1: 安裝依賴套件
-- [ ] 編輯 `requirements.txt`（若存在）或記錄依赖
-- [ ] 執行 `pip install rich>=13.0 questionary>=2.0`
-- [ ] 驗證安裝成功
+- [x] 編輯 `requirements.txt`（若存在）或記錄依赖
+- [x] 執行 `pip install rich>=13.0 questionary>=2.0`
+- [x] 驗證安裝成功
 
 ```bash
 python -c "import rich; import questionary; print('OK')"
 ```
 
 ### Task 4.2: 建立 cli.py 骨架
-- [ ] 建立 `cli.py`
-- [ ] 匯入必要的模組（rich, questionary, sqlite3）
-- [ ] 建立 `main()` 主迴圈
-- [ ] 實作基本選單結構
+- [x] 建立 `cli.py`
+- [x] 匯入必要的模組（rich, questionary, sqlite3）
+- [x] 建立 `main()` 主迴圈
+- [x] 實作基本選單結構
 
 **最小可行產品**:
 ```python
@@ -207,10 +207,10 @@ if __name__ == '__main__':
 ```
 
 ### Task 4.3: 實作「新增審查」功能
-- [ ] 實作 `add_new_review()` 函數
-- [ ] 詢問專案名稱
-- [ ] 呼叫現有引擎（需重構 `main()` 回傳結果）
-- [ ] 儲存結果至資料庫
+- [x] 實作 `add_new_review()` 函數
+- [x] 詢問專案名稱
+- [x] 呼叫現有引擎（需重構 `main()` 回傳結果）
+- [x] 儲存結果至資料庫
 
 **技術挑戰**:
 - `design_decision_engine.main()` 目前只 print，需要：
@@ -235,10 +235,10 @@ def run_design_review(spec: str) -> dict:
 ```
 
 ### Task 4.4: 實作「查歷史記錄」功能
-- [ ] 實作 `view_history()` 函數
-- [ ] 連接 SQLite 資料庫
-- [ ] 查詢最近 10 筆記錄
-- [ ] 使用 Rich Table 顯示
+- [x] 實作 `view_history()` 函數
+- [x] 連接 SQLite 資料庫
+- [x] 查詢最近 10 筆記錄
+- [x] 使用 Rich Table 顯示
 
 **顯示欄位**:
 - ID
@@ -250,15 +250,15 @@ def run_design_review(spec: str) -> dict:
 - 裁決摘要
 
 ### Task 4.5: 實作「管理知識庫」功能
-- [ ] 實作 `manage_knowledge_base()` 函數
-- [ ] 顯示佔位訊息（Phase A 僅預覽）
-- [ ] 列出未來功能
+- [x] 實作 `manage_knowledge_base()` 函數
+- [x] 顯示佔位訊息（Phase A 僅預覽）
+- [x] 列出未來功能
 
 ### Task 4.6: 美化 CLI 介面
-- [ ] 套用暖感工業風格色彩
-- [ ] 新增 Panel 邊框與標題
-- [ ] 調整選單樣式（琥珀橙主題）
-- [ ] 新增 emoji 圖示
+- [x] 套用暖感工業風格色彩
+- [x] 新增 Panel 邊框與標題
+- [x] 調整選單樣式（琥珀橙主題）
+- [x] 新增 emoji 圖示
 
 **色彩配置**:
 ```python
@@ -268,18 +268,18 @@ STYLE_SECONDARY = "#D35400"    # 深橙
 ```
 
 ### Task 4.7: 錯誤處理與使用者回饋
-- [ ] 處理資料庫不存在的錯誤
-- [ ] 處理知識庫載入失敗
-- [ ] 新增操作成功的視覺回饋
-- [ ] 新增進度指示器（审查執行中）
+- [x] 處理資料庫不存在的錯誤
+- [x] 處理知識庫載入失敗
+- [x] 新增操作成功的視覺回饋
+- [x] 新增進度指示器（审查執行中）
 
 ---
 
 ## 階段 A.5: 整合測試與除錯 (預計 1 小時)
 
 ### Task 5.1: 端到端測試流程
-- [ ] 執行 `pytest test_engine.py -v` 確認原有測試全過
-- [ ] 執行 `python db/init_db.py` 初始化資料庫
+- [x] 執行 `pytest test_engine.py -v` 確認原有測試全過
+- [x] 執行 `python db/init_db.py` 初始化資料庫
 - [ ] 執行 `python cli.py` 啟動互動介面
 - [ ] 測試選 [1] 新增審查
 - [ ] 測試選 [2] 查歷史記錄
@@ -309,9 +309,9 @@ ORDER BY reviewed_at DESC;
 - [ ] 確認無記憶體洩漏
 
 ### Task 5.5: 文件更新
-- [ ] 更新 `README.md` 增加 CLI 使用說明
-- [ ] 新增 `CLI_USAGE.md`（可選）
-- [ ] 更新安裝步驟（增加 rich + questionary）
+- [x] 更新 `README.md` 增加 CLI 使用說明
+- [x] 新增 `CLI_USAGE.md`（可選）
+- [x] 更新安裝步驟（增加 rich + questionary）
 
 ---
 

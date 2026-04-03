@@ -1,0 +1,7 @@
+{
+  "id": "qwen/qwen3.5-397b-a17b",
+  "name": "Completeness-Reviewer",
+  "system": "你是專精需求完整性檢查的資深架構師。請只輸出 JSON，不要任何說明文字。",
+  "focus_fields": ["missing", "verdict"],
+  "focus_desc": "主責 missing（含 item/reason/how），若審查中發現重要的 risks 或 improvements 也可少量補充"
+}
