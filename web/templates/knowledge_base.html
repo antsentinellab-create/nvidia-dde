@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}知識庫 - DSS 設計審查系統{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">📚 知識庫瀏覽</h2>
+    </div>
+    
+    <div class="alert alert-info">
+        ℹ️ 知識庫透過 Git 版本控制共享，此頁面為唯讀模式。如需更新請使用 CLI [3-6] 同步功能。
+    </div>
+    
+    <h3 style="color: var(--accent-primary); margin-top: 20px;">🎭 角色定義</h3>
+    {% if knowledge_files.roles and len(knowledge_files.roles) > 0 %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>檔案名稱</th>
+                <th>路徑</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in knowledge_files.roles %}
+            <tr>
+                <td>{{ file.name }}</td>
+                <td><code>{{ file.path }}</code></td>
+                <td>
+                    <button class="btn btn-secondary" onclick="alert('查看功能開發中')">查看</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">目前沒有角色定義文件</p>
+    {% endif %}
+    
+    <h3 style="color: var(--accent-primary); margin-top: 30px;">⚠️ 風險模板</h3>
+    {% if knowledge_files.risk_templates and len(knowledge_files.risk_templates) > 0 %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>檔案名稱</th>
+                <th>路徑</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in knowledge_files.risk_templates %}
+            <tr>
+                <td>{{ file.name }}</td>
+                <td><code>{{ file.path }}</code></td>
+                <td>
+                    <button class="btn btn-secondary" onclick="alert('查看功能開發中')">查看</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">目前沒有風險模板</p>
+    {% endif %}
+    
+    <h3 style="color: var(--accent-primary); margin-top: 30px;">📖 標準規範</h3>
+    {% if knowledge_files.standards and len(knowledge_files.standards) > 0 %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>檔案名稱</th>
+                <th>路徑</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in knowledge_files.standards %}
+            <tr>
+                <td>{{ file.name }}</td>
+                <td><code>{{ file.path }}</code></td>
+                <td>
+                    <button class="btn btn-secondary" onclick="alert('查看功能開發中')">查看</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">目前沒有標準規範文件</p>
+    {% endif %}
+</div>
+
+<div class="mt-20 text-center">
+    <a href="/" class="btn btn-secondary">← 返回首頁</a>
+</div>
+{% endblock %}

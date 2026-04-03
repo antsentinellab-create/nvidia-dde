@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DSS - 設計審查系統{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔧 DSS 設計審查系統</h1>
+            <p class="subtitle">從單人工具到工程部門共用平台</p>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <a href="{{ url_for('index') }}" class="{% if request.url.path == '/' %}active{% endif %}">首頁</a>
+            <a href="{{ url_for('review_new') }}" class="{% if request.url.path == '/review/new' %}active{% endif %}">提交審查</a>
+            <a href="{{ url_for('knowledge_base') }}" class="{% if request.url.path == '/knowledge' %}active{% endif %}">知識庫</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% if message %}
+        <div class="alert alert-{{ message_type or 'info' }}">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>DSS Phase C | Powered by FastAPI + SQLAlchemy</p>
+            <p>資料庫：{{ database_backend or 'SQLite' }}</p>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

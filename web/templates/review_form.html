@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}提交審查 - DSS 設計審查系統{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">📝 提交新審查</h2>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-danger">
+        <strong>錯誤：</strong>{{ error }}
+    </div>
+    {% endif %}
+    
+    <form action="/review/submit" method="POST">
+        <div class="form-group">
+            <label for="project_name">專案名稱 *</label>
+            <input 
+                type="text" 
+                id="project_name" 
+                name="project_name" 
+                class="form-control" 
+                placeholder="例如：馬達控制板 V2.0"
+                required
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="specification">規格說明 *</label>
+            <textarea 
+                id="specification" 
+                name="specification" 
+                class="form-control" 
+                placeholder="請提供完整的規格說明，包括：&#10;- 產品功能描述&#10;- 技術規格參數&#10;- 使用場景與環境&#10;- 相關文件連結"
+                required
+            ></textarea>
+        </div>
+        
+        <div class="form-group">
+            <button type="submit" class="btn btn-success">➡️ 提交審查</button>
+            <a href="/" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+
+<div class="card mt-20">
+    <div class="card-header">
+        <h2 class="card-title">💡 提示</h2>
+    </div>
+    <ul style="margin-left: 20px;">
+        <li>審查將由多個 AI 角色共同執行（風險分析師、完整性審查員等）</li>
+        <li>審查時間約需 1-3 分鐘，取決於規格複雜度</li>
+        <li>審查結果將包含風險評估與改進建議</li>
+        <li>所有審查記錄都會儲存至資料庫供團隊查閱</li>
+    </ul>
+</div>
+{% endblock %}

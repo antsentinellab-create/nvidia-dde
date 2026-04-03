@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}錯誤 - DSS 設計審查系統{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title" style="color: var(--danger);">⚠️ 發生錯誤</h2>
+    </div>
+    
+    <div class="alert alert-danger">
+        <p><strong>錯誤訊息：</strong></p>
+        <pre style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; overflow-x: auto;">{{ error }}</pre>
+    </div>
+    
+    <div class="mt-20 text-center">
+        <a href="/" class="btn">返回首頁</a>
+        <a href="/review/new" class="btn btn-secondary">提交審查</a>
+    </div>
+</div>
+{% endblock %}

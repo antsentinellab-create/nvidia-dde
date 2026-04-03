@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}審查詳情 - DSS 設計審查系統{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">📋 審查詳情 #{{ review.id }}</h2>
+    </div>
+    
+    <table class="table">
+        <tr>
+            <th width="150">專案名稱</th>
+            <td>{{ review.project }}</td>
+        </tr>
+        <tr>
+            <th>審查時間</th>
+            <td>{{ review.reviewed_at[:19] if review.reviewed_at else 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>風險等級</th>
+            <td>
+                <span class="badge badge-high">高：{{ review.risk_high }}</span>
+                <span class="badge badge-medium">中：{{ review.risk_medium }}</span>
+                <span class="badge badge-low">低：{{ review.risk_low }}</span>
+            </td>
+        </tr>
+        <tr>
+            <th>裁決結果</th>
+            <td>{{ review.verdict or 'N/A' }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="card mt-20">
+    <div class="card-header">
+        <h2 class="card-title">📄 完整審查結果 (JSON)</h2>
+    </div>
+    
+    <div class="json-viewer">
+        <pre>{{ review.result_json | tojson(indent=2) }}</pre>
+    </div>
+</div>
+
+<div class="mt-20 text-center">
+    <a href="/" class="btn btn-secondary">← 返回首頁</a>
+</div>
+{% endblock %}

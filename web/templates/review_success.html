@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}提交成功 - DSS 設計審查系統{% endblock %}
+
+{% block extra_js %}
+<script>
+// 定時查詢任務進度
+const taskId = "{{ task_id }}";
+let pollInterval = null;
+
+async function checkProgress() {
+    try {
+        const response = await fetch(`/task/${taskId}/status`);
+        const data = await response.json();
+        
+        if (data.status) {
+            // 更新進度條
+            document.getElementById('progress-bar').style.width = `${data.progress}%`;
+            document.getElementById('progress-text').textContent = `處理進度：${data.progress}%`;
+            document.getElementById('current-stage').textContent = data.current_stage || '處理中...';
+            
+            // 如果完成，跳轉到結果頁面
+            if (data.status === 'completed') {
+                clearInterval(pollInterval);
+                document.getElementById('status-message').innerHTML = '<strong style="color: var(--success);">✅ 審查完成！</strong>';
+                setTimeout(() => {
+                    window.location.href = `/review/${data.task_id}`;
+                }, 1000);
+            } else if (data.status === 'failed') {
+                clearInterval(pollInterval);
+                document.getElementById('status-message').innerHTML = `<strong style="color: var(--danger);">❌ 審查失敗：${data.error}</strong>`;
+            }
+        }
+    } catch (error) {
+        console.error('查詢進度失敗:', error);
+    }
+}
+
+// 啟動定時查詢
+window.onload = () => {
+    checkProgress(); // 立即檢查一次
+    pollInterval = setInterval(checkProgress, 2000); // 每 2 秒查詢一次
+};
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title" style="color: var(--success);">✅ 提交成功</h2>
+    </div>
+    
+    <div class="alert alert-success" id="status-message">
+        <p><strong>{{ message }}</strong></p>
+    </div>
+    
+    <table class="table">
+        <tr>
+            <th width="150">專案名稱</th>
+            <td>{{ project_name }}</td>
+        </tr>
+        <tr>
+            <th>任務 ID</th>
+            <td><code>{{ task_id }}</code></td>
+        </tr>
+    </table>
+    
+    <p class="mt-20">審查正在背景處理中，預計需要 1-3 分鐘。</p>
+    
+    <div style="margin: 20px 0;">
+        <p id="current-stage" class="text-muted">準備中...</p>
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar" style="width: 10%;"></div>
+        </div>
+        <p id="progress-text" class="text-muted text-center">處理進度：10%</p>
+    </div>
+    
+    <div class="mt-20 text-center">
+        <a href="/" class="btn">返回首頁</a>
+        <a href="/review/new" class="btn btn-secondary">提交另一個審查</a>
+    </div>
+</div>
+{% endblock %}

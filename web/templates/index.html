@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}首頁 - DSS 設計審查系統{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">📊 最近審查記錄</h2>
+    </div>
+    
+    {% if reviews and len(reviews) > 0 %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>專案名稱</th>
+                <th>審查時間</th>
+                <th>高風險</th>
+                <th>中風險</th>
+                <th>低風險</th>
+                <th>裁決</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for review in reviews %}
+            <tr>
+                <td>{{ review[0] }}</td>
+                <td>{{ review[1] }}</td>
+                <td>{{ review[2][:19] if review[2] else 'N/A' }}</td>
+                <td><span class="badge badge-high">{{ review[3] }}</span></td>
+                <td><span class="badge badge-medium">{{ review[4] }}</span></td>
+                <td><span class="badge badge-low">{{ review[5] }}</span></td>
+                <td>{{ review[6][:50] if review[6] else 'N/A' }}...</td>
+                <td>
+                    <a href="/review/{{ review[0] }}" class="btn btn-secondary">查看詳情</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="mt-20 text-center">
+        <a href="/review/new" class="btn">➕ 提交新審查</a>
+    </div>
+    
+    {% else %}
+    <div class="alert alert-info">
+        <p>目前還沒有審查記錄。</p>
+        <p class="mt-20">
+            <a href="/review/new" class="btn">開始第一個審查</a>
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card mt-20">
+    <div class="card-header">
+        <h2 class="card-title">ℹ️ 關於 DSS</h2>
+    </div>
+    <p>DSS (Design Review System) 是一個基於 AI 的設計審查系統，協助工程團隊識別專案風險並提供改進建議。</p>
+    <p class="mt-20"><strong>Phase C 新功能：</strong></p>
+    <ul style="margin-left: 20px; margin-top: 10px;">
+        <li>✅ Web UI 介面 - 可視化操作體驗</li>
+        <li>✅ PostgreSQL 支援 - 多人協作共用</li>
+        <li>✅ 知識庫 Git 同步 - 團隊知識共享</li>
+        <li>✅ 非同步審查任務 - 背景處理不阻塞</li>
+    </ul>
+</div>
+{% endblock %}
