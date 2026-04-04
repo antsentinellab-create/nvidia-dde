@@ -70,7 +70,7 @@ class TaskQueue:
         
         self.max_workers = max_workers
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
-        self.queue: asyncio.Queue[ReviewTask] = asyncio.Queue()
+        self.queue: Optional[asyncio.Queue[ReviewTask]] = None
         self.tasks: Dict[str, ReviewTask] = {}
         self._worker_task: Optional[asyncio.Task] = None
         self._running = False
@@ -78,6 +78,8 @@ class TaskQueue:
     async def start(self):
         """啟動背景 worker"""
         if not self._running:
+            if self.queue is None:
+                self.queue = asyncio.Queue()
             self._running = True
             self._worker_task = asyncio.create_task(self._worker())
             
@@ -88,9 +90,10 @@ class TaskQueue:
             self._worker_task.cancel()
             try:
                 await self._worker_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, asyncio.TimeoutError):
                 pass
-        self.executor.shutdown(wait=False)
+        if self.executor:
+            self.executor.shutdown(wait=False)
     
     async def submit_task(self, project_name: str, specification: str) -> str:
         """
@@ -103,6 +106,10 @@ class TaskQueue:
         Returns:
             str: 任務 ID
         """
+        # Ensure queue exists and worker is running
+        if not self._running or self.queue is None:
+            await self.start()
+
         task_id = str(uuid.uuid4())
         task = ReviewTask(
             task_id=task_id,
@@ -111,7 +118,8 @@ class TaskQueue:
         )
         
         self.tasks[task_id] = task
-        await self.queue.put(task)
+        if self.queue:
+            await self.queue.put(task)
         
         return task_id
     
@@ -135,7 +143,17 @@ class TaskQueue:
                 # 被取消，退出 worker
                 break
             except Exception as e:
-                print(f"Worker 錯誤：{e}")
+                import json
+                from datetime import datetime
+                log_entry = {
+                    "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                    "lvl": "ERROR",
+                    "script": "task_queue.py",
+                    "fn": "_worker",
+                    "msg": f"Worker 錯誤：{e}",
+                    "elapsed_ms": 0
+                }
+                print(json.dumps(log_entry, ensure_ascii=False))
     
     def _execute_task(self, task: ReviewTask):
         """
@@ -144,55 +162,122 @@ class TaskQueue:
         Args:
             task: 要執行的任務
         """
+        import json
+        from datetime import datetime
+        
+        start_time = datetime.utcnow()
+        
+        def log_progress(stage: str, progress: int, msg: str):
+            """記錄進度日誌"""
+            elapsed = (datetime.utcnow() - start_time).total_seconds() * 1000
+            log_entry = {
+                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "lvl": "INFO",
+                "script": "task_queue.py",
+                "fn": "_execute_task",
+                "msg": msg,
+                "extra": {
+                    "task_id": task.task_id,
+                    "project": task.project_name,
+                    "stage": stage,
+                    "progress": progress
+                },
+                "elapsed_ms": int(elapsed)
+            }
+            print(json.dumps(log_entry, ensure_ascii=False))
+        
         try:
+            log_progress("", 0, f"🚀 開始執行任務：{task.task_id} | 專案：{task.project_name}")
+            
             # 更新任務狀態
             task.status = TaskStatus.PROCESSING
             task.started_at = datetime.utcnow()
             
-            # TODO: 這裡需要整合實際的 review engine
-            # 目前先模擬執行過程
-            
             # Stage 1: 載入知識庫 (10%)
             task.current_stage = "載入知識庫..."
             task.progress = 10
+            log_progress(task.current_stage, 10, "📚 [10%] 載入知識庫...")
             
             # Stage 2: Risk Analyst 審查 (40%)
             task.current_stage = "風險分析師審查中..."
             task.progress = 40
-            # TODO: 呼叫实际的 risk analyst
+            log_progress(task.current_stage, 40, "⚠️  [40%] 風險分析師審查中...")
             
             # Stage 3: Completeness Reviewer 審查 (70%)
             task.current_stage = "完整性審查員審查中..."
             task.progress = 70
-            # TODO: 呼叫实际的 completeness reviewer
+            log_progress(task.current_stage, 70, "✅ [70%] 完整性審查員審查中...")
             
             # Stage 4: Improvement Advisor 審查 (90%)
             task.current_stage = "改進顧問審查中..."
             task.progress = 90
-            # TODO: 呼叫实际的 improvement advisor
+            log_progress(task.current_stage, 90, "💡 [90%] 改進顧問審查中...")
             
             # Stage 5: Aggregator 裁決 (100%)
             task.current_stage = "生成最終裁決..."
             task.progress = 100
+            log_progress(task.current_stage, 100, "🏛️ [100%] 生成最終裁決...")
             
-            # TODO: 實際應該要整合 engine/loader.py 和 design_decision_engine.py
-            # 這裡先返回一個模擬的結果
-            task.result = {
-                "verdict": "通過審查（模擬結果）",
-                "risks": [],
-                "missing": [],
-                "improvements": [],
-                "good_points": []
-            }
+            # 呼叫實際的審查引擎
+            log_progress(task.current_stage, 100, "🔍 呼叫 AI 審查引擎...")
+            from engine.loader import review_project
+            result = review_project(task.specification)
             
+            log_progress(task.current_stage, 100, f"✅ 審查完成！風險:{len(result.get('risks', []))} 缺失:{len(result.get('missing', []))} 建議:{len(result.get('improvements', []))} 優點:{len(result.get('good_points', []))}")
+            
+            # 保存到資料庫
+            log_progress(task.current_stage, 100, "💾 儲存到資料庫...")
+            from db.repository import save_review
+            review_id = save_review(
+                project_name=task.project_name,
+                result_json=result
+            )
+            log_progress(task.current_stage, 100, f"✅ 已儲存，審查 ID: {review_id}")
+            
+            # 設置任務結果
+            task.result = result
             task.status = TaskStatus.COMPLETED
             task.completed_at = datetime.utcnow()
+            
+            total_elapsed = (datetime.utcnow() - start_time).total_seconds() * 1000
+            log_entry = {
+                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "lvl": "INFO",
+                "script": "task_queue.py",
+                "fn": "_execute_task",
+                "msg": f"✅ 任務完成：{task.task_id}",
+                "extra": {
+                    "task_id": task.task_id,
+                    "project": task.project_name,
+                    "review_id": review_id,
+                    "status": "COMPLETED"
+                },
+                "elapsed_ms": int(total_elapsed)
+            }
+            print(json.dumps(log_entry, ensure_ascii=False))
             
         except Exception as e:
             task.status = TaskStatus.FAILED
             task.error = str(e)
             task.completed_at = datetime.utcnow()
-            print(f"任務失敗 {task.task_id}: {e}")
+            total_elapsed = (datetime.utcnow() - start_time).total_seconds() * 1000
+            log_entry = {
+                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "lvl": "ERROR",
+                "script": "task_queue.py",
+                "fn": "_execute_task",
+                "msg": f"❌ 任務失敗 {task.task_id}: {e}",
+                "extra": {
+                    "task_id": task.task_id,
+                    "project": task.project_name,
+                    "error": str(e),
+                    "status": "FAILED"
+                },
+                "elapsed_ms": int(total_elapsed)
+            }
+            print(json.dumps(log_entry, ensure_ascii=False))
+            import traceback
+            traceback.print_exc()
     
     def get_task(self, task_id: str) -> Optional[ReviewTask]:
         """

@@ -13,7 +13,7 @@
     </div>
     
     <h3 style="color: var(--accent-primary); margin-top: 20px;">🎭 角色定義</h3>
-    {% if knowledge_files.roles and len(knowledge_files.roles) > 0 %}
+    {% if knowledge_files.roles and knowledge_files.roles|length > 0 %}
     <table class="table">
         <thead>
             <tr>
@@ -39,7 +39,7 @@
     {% endif %}
     
     <h3 style="color: var(--accent-primary); margin-top: 30px;">⚠️ 風險模板</h3>
-    {% if knowledge_files.risk_templates and len(knowledge_files.risk_templates) > 0 %}
+    {% if knowledge_files.risk_templates and knowledge_files.risk_templates|length > 0 %}
     <table class="table">
         <thead>
             <tr>
@@ -65,7 +65,7 @@
     {% endif %}
     
     <h3 style="color: var(--accent-primary); margin-top: 30px;">📖 標準規範</h3>
-    {% if knowledge_files.standards and len(knowledge_files.standards) > 0 %}
+    {% if knowledge_files.standards and knowledge_files.standards|length > 0 %}
     <table class="table">
         <thead>
             <tr>

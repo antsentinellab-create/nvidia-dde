@@ -43,20 +43,6 @@ BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-@app.on_event("startup")
-async def startup_event():
-    """啟動時初始化資料庫和任務佇列"""
-    init_db()
-    await init_task_queue()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """關閉時清理任務佇列"""
-    from engine.task_queue import shutdown_task_queue
-    await shutdown_task_queue()
-
-
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/history.db")
 IS_POSTGRESQL = DATABASE_URL.startswith("postgresql")
@@ -65,6 +51,16 @@ IS_POSTGRESQL = DATABASE_URL.startswith("postgresql")
 def get_database_backend():
     """獲取資料庫後端資訊"""
     return "PostgreSQL" if IS_POSTGRESQL else "SQLite"
+
+
+@app.on_event("startup")
+async def startup_event():
+    """啟動時初始化資料庫和任務佇列"""
+    init_db()
+    await init_task_queue()
+    
+    # 添加全局變數到 Jinja2 環境
+    templates.env.globals["get_database_backend"] = get_database_backend
 
 
 # Dependency to inject database info into templates
@@ -83,26 +79,27 @@ async def index(request: Request):
         
         reviews = get_recent_reviews(limit=10)
         
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "reviews": reviews,
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "index.html",
+            {"reviews": reviews}
+        )
     except Exception as e:
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error": str(e),
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {"error": str(e)}
+        )
 
 
 @app.get("/review/new", response_class=HTMLResponse)
 async def review_new(request: Request):
     """提交新審查表單頁面"""
-    return templates.TemplateResponse("review_form.html", {
-        "request": request,
-        "database_backend": get_database_backend()
-    })
+    return templates.TemplateResponse(
+        request,
+        "review_form.html",
+        {}
+    )
 
 
 @app.post("/review/submit")
@@ -117,20 +114,22 @@ async def review_submit(
         task_queue = get_task_queue()
         task_id = await task_queue.submit_task(project_name, specification)
         
-        return templates.TemplateResponse("review_success.html", {
-            "request": request,
-            "project_name": project_name,
-            "task_id": task_id,
-            "message": "審查已提交，正在背景處理中...",
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "review_success.html",
+            {
+                "project_name": project_name,
+                "task_id": task_id,
+                "message": "審查已提交，正在背景處理中..."
+            }
+        )
         
     except Exception as e:
-        return templates.TemplateResponse("review_form.html", {
-            "request": request,
-            "error": str(e),
-            "database_backend": get_database_backend()
-        }, status_code=400)
+        return templates.TemplateResponse(
+            request,
+            "review_form.html",
+            {"error": str(e)}
+        , status_code=400)
 
 
 @app.get("/review/{review_id}", response_class=HTMLResponse)
@@ -140,24 +139,24 @@ async def review_detail(request: Request, review_id: int):
         review = get_review_by_id(review_id)
         
         if not review:
-            return templates.TemplateResponse("404.html", {
-                "request": request,
-                "message": "找不到該審查記錄",
-                "database_backend": get_database_backend()
-            }, status_code=404)
+            return templates.TemplateResponse(
+                request,
+                "404.html",
+                {"message": "找不到該審查記錄"}
+            , status_code=404)
         
-        return templates.TemplateResponse("review_detail.html", {
-            "request": request,
-            "review": review,
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "review_detail.html",
+            {"review": review}
+        )
         
     except Exception as e:
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error": str(e),
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {"error": str(e)}
+        )
 
 
 @app.get("/knowledge", response_class=HTMLResponse)
@@ -182,18 +181,18 @@ async def knowledge_base(request: Request):
                         "path": str(file.relative_to(knowledge_dir))
                     })
         
-        return templates.TemplateResponse("knowledge_base.html", {
-            "request": request,
-            "knowledge_files": knowledge_files,
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "knowledge_base.html",
+            {"knowledge_files": knowledge_files}
+        )
         
     except Exception as e:
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error": str(e),
-            "database_backend": get_database_backend()
-        })
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {"error": str(e)}
+        )
 
 
 @app.get("/task/{task_id}/status")

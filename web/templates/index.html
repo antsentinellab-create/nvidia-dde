@@ -8,7 +8,7 @@
         <h2 class="card-title">📊 最近審查記錄</h2>
     </div>
     
-    {% if reviews and len(reviews) > 0 %}
+    {% if reviews and reviews|length > 0 %}
     <table class="table">
         <thead>
             <tr>
@@ -27,7 +27,7 @@
             <tr>
                 <td>{{ review[0] }}</td>
                 <td>{{ review[1] }}</td>
-                <td>{{ review[2][:19] if review[2] else 'N/A' }}</td>
+                <td>{{ review[2].strftime('%Y-%m-%d %H:%M:%S')[:19] if review[2] else 'N/A' }}</td>
                 <td><span class="badge badge-high">{{ review[3] }}</span></td>
                 <td><span class="badge badge-medium">{{ review[4] }}</span></td>
                 <td><span class="badge badge-low">{{ review[5] }}</span></td>

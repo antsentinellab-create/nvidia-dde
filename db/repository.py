@@ -65,7 +65,9 @@ def get_review_by_id(review_id: int) -> dict:
                 "risk_medium": review.risk_medium,
                 "risk_low": review.risk_low,
                 "verdict": review.verdict,
-                "result_json": review.result_json
+                "result_json": review.result_json,
+                # 添加預先格式化的 JSON 字串（支援中文）
+                "result_json_formatted": json.dumps(review.result_json, indent=2, ensure_ascii=False)
             }
         return None
     finally:

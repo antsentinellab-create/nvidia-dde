@@ -6,33 +6,36 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
+from typing import Optional
 import os
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# Database URL configuration (default to SQLite)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/history.db")
-
-# Create engine with appropriate settings
-if DATABASE_URL.startswith("sqlite"):
-    # SQLite specific settings
-    engine = create_engine(
-        DATABASE_URL,
+def create_db_engine(url: Optional[str] = None):
+    """根據 URL 建立資料庫引擎"""
+    if url:
+        if url.startswith("postgresql"):
+            return create_engine(
+                url,
+                pool_size=5,
+                max_overflow=10,
+                pool_timeout=30,
+                pool_recycle=1800
+            )
+        return create_engine(url)
+    
+    # 預設使用 SQLite
+    return create_engine(
+        "sqlite:///db/history.db", 
         connect_args={"check_same_thread": False},
         poolclass=StaticPool
     )
-else:
-    # PostgreSQL settings with connection pooling
-    engine = create_engine(
-        DATABASE_URL,
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True  # Enable connection health checks
-    )
 
-# Session factory
+# 建立全域引擎與 Session
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_db_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for models

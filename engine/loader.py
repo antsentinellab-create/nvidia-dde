@@ -79,7 +79,18 @@ def load_role(filename: str) -> Dict:
         with open(role_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        print(f"⚠️  警告：找不到角色檔案 {role_path}，使用內建預設值")
+        import json as json_module
+        from datetime import datetime
+        log_entry = {
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+            "lvl": "WARN",
+            "script": "loader.py",
+            "fn": "load_role",
+            "msg": f"警告：找不到角色檔案 {role_path}，使用內建預設值",
+            "extra": {"filename": filename},
+            "elapsed_ms": 0
+        }
+        print(json_module.dumps(log_entry, ensure_ascii=False))
         # 根據 filename 回傳對應的內建角色
         if filename == "risk_analyst.json":
             return BUILTIN_ROLES[0]
@@ -90,7 +101,18 @@ def load_role(filename: str) -> Dict:
         else:
             raise ValueError(f"未知的角色檔案：{filename}")
     except json.JSONDecodeError as e:
-        print(f"⚠️  警告：角色檔案 JSON 格式錯誤 {e}，使用內建預設值")
+        import json as json_module
+        from datetime import datetime
+        log_entry = {
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+            "lvl": "WARN",
+            "script": "loader.py",
+            "fn": "load_role",
+            "msg": f"警告：角色檔案 JSON 格式錯誤 {e}，使用內建預設值",
+            "extra": {"filename": filename, "error": str(e)},
+            "elapsed_ms": 0
+        }
+        print(json_module.dumps(log_entry, ensure_ascii=False))
         if filename == "risk_analyst.json":
             return BUILTIN_ROLES[0]
         elif filename == "completeness_reviewer.json":
@@ -114,7 +136,18 @@ def load_roles() -> List[Dict]:
     roles_dir = get_knowledge_base_path() / "roles"
     
     if not roles_dir.exists():
-        print(f"⚠️  警告：找不到 roles 目錄 {roles_dir}，使用內建預設值")
+        import json as json_module
+        from datetime import datetime
+        log_entry = {
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+            "lvl": "WARN",
+            "script": "loader.py",
+            "fn": "load_roles",
+            "msg": f"警告：找不到 roles 目錄 {roles_dir}，使用內建預設值",
+            "extra": {"roles_dir": str(roles_dir)},
+            "elapsed_ms": 0
+        }
+        print(json_module.dumps(log_entry, ensure_ascii=False))
         return BUILTIN_ROLES
     
     role_files = [
@@ -129,10 +162,32 @@ def load_roles() -> List[Dict]:
             role = load_role(filename)
             roles.append(role)
         except Exception as e:
-            print(f"⚠️  載入 {filename} 失敗：{e}")
+            import json as json_module
+            from datetime import datetime
+            log_entry = {
+                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "lvl": "WARN",
+                "script": "loader.py",
+                "fn": "load_roles",
+                "msg": f"載入 {filename} 失敗：{e}",
+                "extra": {"filename": filename, "error": str(e)},
+                "elapsed_ms": 0
+            }
+            print(json_module.dumps(log_entry, ensure_ascii=False))
     
     if not roles:
-        print("⚠️  所有角色載入失敗，使用內建預設值")
+        import json as json_module
+        from datetime import datetime
+        log_entry = {
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+            "lvl": "WARN",
+            "script": "loader.py",
+            "fn": "load_roles",
+            "msg": "所有角色載入失敗，使用內建預設值",
+            "extra": {},
+            "elapsed_ms": 0
+        }
+        print(json_module.dumps(log_entry, ensure_ascii=False))
         return BUILTIN_ROLES
     
     return roles
@@ -178,7 +233,18 @@ def load_standards() -> List[Dict[str, str]]:
     standards_dir = get_knowledge_base_path() / "standards"
     
     if not standards_dir.exists():
-        print(f"⚠️  警告：找不到 standards 目錄 {standards_dir}")
+        import json as json_module
+        from datetime import datetime
+        log_entry = {
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+            "lvl": "WARN",
+            "script": "loader.py",
+            "fn": "load_standards",
+            "msg": f"警告：找不到 standards 目錄 {standards_dir}",
+            "extra": {"standards_dir": str(standards_dir)},
+            "elapsed_ms": 0
+        }
+        print(json_module.dumps(log_entry, ensure_ascii=False))
         return []
     
     standards = []
@@ -193,7 +259,18 @@ def load_standards() -> List[Dict[str, str]]:
                         'content': content
                     })
             except Exception as e:
-                print(f"⚠️  讀取規範檔案 {file_path.name} 失敗：{e}")
+                import json as json_module
+                from datetime import datetime
+                log_entry = {
+                    "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                    "lvl": "WARN",
+                    "script": "loader.py",
+                    "fn": "load_standards",
+                    "msg": f"讀取規範檔案 {file_path.name} 失敗：{e}",
+                    "extra": {"filename": file_path.name, "error": str(e)},
+                    "elapsed_ms": 0
+                }
+                print(json_module.dumps(log_entry, ensure_ascii=False))
     
     return standards
 
@@ -208,7 +285,18 @@ def load_risk_templates() -> List[Dict]:
     templates_dir = get_knowledge_base_path() / "risk_templates"
     
     if not templates_dir.exists():
-        print(f"⚠️  警告：找不到 risk_templates 目錄 {templates_dir}")
+        import json as json_module
+        from datetime import datetime
+        log_entry = {
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+            "lvl": "WARN",
+            "script": "loader.py",
+            "fn": "load_risk_templates",
+            "msg": f"警告：找不到 risk_templates 目錄 {templates_dir}",
+            "extra": {"templates_dir": str(templates_dir)},
+            "elapsed_ms": 0
+        }
+        print(json_module.dumps(log_entry, ensure_ascii=False))
         return []
     
     templates = []
@@ -221,7 +309,18 @@ def load_risk_templates() -> List[Dict]:
                     'data': data
                 })
         except Exception as e:
-            print(f"⚠️  讀取風險模板 {file_path.name} 失敗：{e}")
+            import json as json_module
+            from datetime import datetime
+            log_entry = {
+                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "lvl": "WARN",
+                "script": "loader.py",
+                "fn": "load_risk_templates",
+                "msg": f"讀取風險模板 {file_path.name} 失敗：{e}",
+                "extra": {"filename": file_path.name, "error": str(e)},
+                "elapsed_ms": 0
+            }
+            print(json_module.dumps(log_entry, ensure_ascii=False))
     
     return templates
 
@@ -260,6 +359,161 @@ def save_risk_template(name: str, data: Dict) -> Path:
         json.dump(data, f, ensure_ascii=False, indent=2)
     
     return template_path
+
+
+def review_project(specification: str) -> Dict:
+    """
+    審查專案規格
+    
+    Args:
+        specification: 專案規格說明文字
+        
+    Returns:
+        Dict: 審查結果 JSON
+    """
+    import sys
+    from io import StringIO
+    import json
+    from design_decision_engine import get_client, get_content, parse_json, normalize, is_valid_output
+    from engine.loader import load_roles
+    
+    # 暫時攔截 stdout
+    old_stdout = sys.stdout
+    sys.stdout = StringIO()
+    
+    try:
+        # 載入角色
+        ROLES = load_roles()
+        AGGREGATOR_MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1"
+        
+        results = {}
+        
+        # Phase 1: 各專家分工審查
+        for role in ROLES:
+            try:
+                # 直接使用 specification 作為 prompt
+                prompt = f"""你是一位資深系統架構師，正在 Code Review 以下系統設計規格。
+
+{specification}
+
+你的分工：{role['focus_desc']}
+
+請以你主責的欄位為主，輸出完整 JSON。其他欄位若有值得提出的觀察可少量補充，沒有則留空陣列。
+JSON 格式：
+{{
+  "risks": [{{"level": "high/medium/low", "issue": "...", "suggestion": "..."}}],
+  "missing": [{{"item": "...", "reason": "...", "how": "..."}}],
+  "improvements": [{{"area": "...", "current": "...", "better": "..."}}],
+  "good_points": ["..."],
+  "verdict": "你的整體評估"
+}}
+
+請只輸出 JSON，不要任何說明文字。"""
+                
+                response = get_client().chat.completions.create(
+                    model=role["id"],
+                    messages=[
+                        {"role": "system", "content": role["system"]},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2048
+                )
+                raw = get_content(response)
+                data, err = parse_json(raw)
+                results[role["name"]] = normalize(data)
+            except Exception as e:
+                import json as json_module
+                from datetime import datetime
+                log_entry = {
+                    "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                    "lvl": "ERROR",
+                    "script": "loader.py",
+                    "fn": "review_project",
+                    "msg": f"專家 {role['name']} 審查失敗：{e}",
+                    "extra": {"role_name": role['name'], "error": str(e)},
+                    "elapsed_ms": 0
+                }
+                print(json_module.dumps(log_entry, ensure_ascii=False))
+                results[role["name"]] = normalize(None)
+        
+        # Phase 2: 合併各專家結果
+        merged = {
+            "risks": [],
+            "missing": [],
+            "improvements": [],
+            "good_points": [],
+            "expert_verdicts": {}
+        }
+        for name, r in results.items():
+            merged["risks"].extend(r["risks"])
+            merged["missing"].extend(r["missing"])
+            merged["improvements"].extend(r["improvements"])
+            merged["good_points"].extend(r["good_points"])
+            if r["verdict"]:
+                merged["expert_verdicts"][name] = r["verdict"]
+        
+        # Phase 3: Aggregator 最終裁決
+        agg_prompt = f"""你是最終裁決者。以下是三位專家的分工審查結果：
+
+        {json.dumps(merged, ensure_ascii=False, indent=2)}
+
+        任務：
+        1. 合併語意相同的項目
+        2. 刪除低價值或重複建議
+        3. 對 risks / missing / improvements 排「優先順序」
+        4. 若專家意見衝突，請選擇你認為正確的
+
+        限制：
+        - 最多保留每類 5 條
+        - 必須做取捨
+
+        輸出格式（只輸出 JSON）：
+        {{
+          "risks": [{{
+            "level": "high/medium/low",
+            "issue": "問題描述",
+            "suggestion": "具體建議"
+          }}],
+          "missing": [{{
+            "item": "缺少的設計",
+            "reason": "為什麼需要",
+            "how": "如何補充"
+          }}],
+          "improvements": [{{
+            "area": "改善領域",
+            "current": "現況",
+            "better": "更好的做法"
+          }}],
+          "good_points": ["值得保留的設計決策"],
+          "verdict": "整體評估"
+        }}"""
+        
+        try:
+            agg_response = get_client().chat.completions.create(
+                model=AGGREGATOR_MODEL,
+                messages=[
+                    {"role": "system", "content": "你是資深首席架構師，負責整合各專家意見並做最終裁決。只輸出 JSON，不要任何說明文字。"},
+                    {"role": "user", "content": agg_prompt}
+                ],
+                temperature=0.2,
+                max_tokens=4096
+            )
+            agg_raw = get_content(agg_response)
+            agg_data, agg_err = parse_json(agg_raw)
+            
+            if is_valid_output(agg_data):
+                final_result = agg_data
+            else:
+                final_result = merged
+        except Exception as e:
+            print(f"Aggregator 失敗：{e}")
+            final_result = merged
+        
+        return final_result
+        
+    finally:
+        sys.stdout = old_stdout
 
 
 if __name__ == "__main__":

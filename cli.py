@@ -19,11 +19,13 @@ from pathlib import Path
 import json
 import sys
 import time
+import shutil
 
 # 引入現有引擎
 from design_decision_engine import SPEC, AGGREGATOR_MODEL, build_prompt, get_content, parse_json, normalize, is_valid_output, get_client
 from openai import OpenAI
-from engine.loader import load_roles
+from engine.loader import load_roles, save_role, load_risk_templates, save_risk_template
+from db.repository import save_review, get_recent_reviews
 
 console = Console()
 
@@ -430,7 +432,7 @@ def import_design_standard():
         return
     
     # 驗證檔案
-    src_path = FilePath(file_path_str)
+    src_path = Path(file_path_str)
     if not src_path.exists():
         console.print(f"[red]❌ 找不到檔案：{src_path}[/red]")
         return
