@@ -2,7 +2,7 @@
 SQLAlchemy ORM Models for DSS Database
 支援 SQLite 與 PostgreSQL 雙重後端
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -48,7 +48,7 @@ class Review(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     project = Column(String(500), nullable=False)
-    reviewed_at = Column(DateTime, default=datetime.utcnow)
+    reviewed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     risk_high = Column(Integer, default=0)
     risk_medium = Column(Integer, default=0)
     risk_low = Column(Integer, default=0)

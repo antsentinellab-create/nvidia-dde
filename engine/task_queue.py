@@ -4,7 +4,7 @@ Async Task Queue for Review Processing
 """
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timezone
 from typing import Dict, Optional, Callable, Any
 from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass, field
@@ -31,7 +31,7 @@ class ReviewTask:
     current_stage: str = ""
     result: Optional[Dict] = None
     error: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     
@@ -144,9 +144,9 @@ class TaskQueue:
                 break
             except Exception as e:
                 import json
-                from datetime import datetime
+                from datetime import datetime, timezone, timezone
                 log_entry = {
-                    "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+0800"),
                     "lvl": "ERROR",
                     "script": "task_queue.py",
                     "fn": "_worker",
@@ -163,15 +163,15 @@ class TaskQueue:
             task: 要執行的任務
         """
         import json
-        from datetime import datetime
+        from datetime import datetime, timezone, timezone
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         
         def log_progress(stage: str, progress: int, msg: str):
             """記錄進度日誌"""
-            elapsed = (datetime.utcnow() - start_time).total_seconds() * 1000
+            elapsed = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
             log_entry = {
-                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+0800"),
                 "lvl": "INFO",
                 "script": "task_queue.py",
                 "fn": "_execute_task",
@@ -191,7 +191,7 @@ class TaskQueue:
             
             # 更新任務狀態
             task.status = TaskStatus.PROCESSING
-            task.started_at = datetime.utcnow()
+            task.started_at = datetime.now(timezone.utc)
             
             # Stage 1: 載入知識庫 (10%)
             task.current_stage = "載入知識庫..."
@@ -220,7 +220,7 @@ class TaskQueue:
             
             # 呼叫實際的審查引擎
             log_progress(task.current_stage, 100, "🔍 呼叫 AI 審查引擎...")
-            from engine.loader import review_project
+            from design_decision_engine import review_project
             result = review_project(task.specification)
             
             log_progress(task.current_stage, 100, f"✅ 審查完成！風險:{len(result.get('risks', []))} 缺失:{len(result.get('missing', []))} 建議:{len(result.get('improvements', []))} 優點:{len(result.get('good_points', []))}")
@@ -237,11 +237,11 @@ class TaskQueue:
             # 設置任務結果
             task.result = result
             task.status = TaskStatus.COMPLETED
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now(timezone.utc)
             
-            total_elapsed = (datetime.utcnow() - start_time).total_seconds() * 1000
+            total_elapsed = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
             log_entry = {
-                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+0800"),
                 "lvl": "INFO",
                 "script": "task_queue.py",
                 "fn": "_execute_task",
@@ -259,10 +259,10 @@ class TaskQueue:
         except Exception as e:
             task.status = TaskStatus.FAILED
             task.error = str(e)
-            task.completed_at = datetime.utcnow()
-            total_elapsed = (datetime.utcnow() - start_time).total_seconds() * 1000
+            task.completed_at = datetime.now(timezone.utc)
+            total_elapsed = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
             log_entry = {
-                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+0800"),
+                "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+0800"),
                 "lvl": "ERROR",
                 "script": "task_queue.py",
                 "fn": "_execute_task",

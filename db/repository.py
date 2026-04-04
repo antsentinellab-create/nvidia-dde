@@ -4,7 +4,7 @@ cli.py 不應直接操作 sqlite3，統一透過這個模組
 現改用 SQLAlchemy ORM，支援 SQLite/PostgreSQL 雙後端
 """
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from db.models import Review, SessionLocal, init_db
 
 
@@ -20,7 +20,7 @@ def save_review(project_name: str, result_json: dict) -> int:
         
         review = Review(
             project=project_name,
-            reviewed_at=datetime.utcnow(),
+            reviewed_at=datetime.now(timezone.utc),
             risk_high=risk_high,
             risk_medium=risk_medium,
             risk_low=risk_low,

@@ -51,10 +51,9 @@ def test_add_new_review_empty_name(mock_questionary, mock_console):
     assert found
 
 def test_run_design_review(mock_openai):
-    # This calls get_client().chat.completions.create
-    # mock_openai is from conftest.py
     with patch("cli.load_roles", return_value=[{"name": "E1", "id": "model-1", "system": "s"}]), \
-         patch("cli.get_client", return_value=mock_openai):
+         patch("cli.get_client", return_value=mock_openai), \
+         patch("cli.time.sleep"):  # 避免真實 sleep 拖慢測試
         result = cli.run_design_review("Spec")
         assert "risks" in result
 
