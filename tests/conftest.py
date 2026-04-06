@@ -29,6 +29,7 @@ def mock_openai(monkeypatch):
     # Mock the OpenAI class constructor
     # We mock it in both design_decision_engine and any other place it might be imported
     monkeypatch.setattr("design_decision_engine.OpenAI", MagicMock(return_value=mock_client_instance))
+    monkeypatch.setattr("design_decision_engine.get_client", MagicMock(return_value=mock_client_instance))
     
     return mock_client_instance
 

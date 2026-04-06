@@ -64,7 +64,8 @@ class TestTaskQueueCore:
         
         # Mock review_project to return success immediately
         mock_result = {"risks": [], "verdict": "OK"}
-        with patch("engine.loader.review_project", return_value=mock_result), \
+        with patch("design_decision_engine.review_project", return_value=mock_result), \
+             patch("engine.task_queue.review_project", return_value=mock_result), \
              patch("db.repository.save_review", return_value=123):
             
             task_id = await queue.submit_task("Test", "Spec")
@@ -89,7 +90,8 @@ class TestTaskQueueCore:
         queue = fresh_queue
         
         # Mock review_project to raise exception
-        with patch("engine.loader.review_project", side_effect=Exception("Failed!")), \
+        with patch("design_decision_engine.review_project", side_effect=Exception("Failed!")), \
+             patch("engine.task_queue.review_project", side_effect=Exception("Failed!")), \
              patch("db.repository.save_review"):
             
             task_id = await queue.submit_task("Fail Test", "Spec")

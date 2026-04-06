@@ -56,85 +56,214 @@
 
 ## 🏗️ 系統架構
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    設計規格 (SPEC)                       │
-│           RequestRetryBudget 架構說明                     │
-└────────────────────┬────────────────────────────────────┘
-                     │
-        ┌────────────┼────────────┐
-        │            │            │
-        ▼            ▼            ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Risk-Analyst │ │ Completeness │ │ Improvement  │
-│   (V3.2)     │ │  Reviewer    │ │   Advisor    │
-│              │ │  (Qwen3.5)   │ │ (Mistral)    │
-│ ⚠️ 易超時     │ │ ✅ 穩定      │ │ ✅ 快速      │
-└──────┬───────┘ └──────┬───────┘ └──────┬───────┘
-       │                │                │
-       └────────────────┼────────────────┘
-                        │
-                        ▼
-            ┌───────────────────────┐
-            │    Merger & Merge     │
-            │  合併各專家審查結果     │
-            │  ✅ 包含 fallback      │
-            └───────────┬───────────┘
-                        │
-                        ▼
-            ┌───────────────────────┐
-            │   Aggregator          │
-            │ (Nemotron-Ultra 253B) │
-            │   最終裁決與整合        │
-            │   ✅ Sanity Check     │
-            └───────────┬───────────┘
-                        │
-                        ▼
-            ┌───────────────────────┐
-            │   最終裁決報告 (JSON)   │
-            └───────────────────────┘
+> 本架構圖依照 [C4 Model](https://c4model.com) 分層呈現，從系統全貌逐層深入至模組細節。
+
+### L1｜系統情境（Context）
+> 系統與外部世界的關係
+
+```mermaid
+graph LR
+    subgraph External["外部"]
+        User["👤 工程師\n提交設計規格審查"]
+        NVIDIA_API["NVIDIA AI API\n提供多模型推理服務"]
+    end
+    subgraph System["本系統"]
+        DSS["DSS 設計決策支援系統\n多專家協作審查引擎"]
+    end
+    User -->|"提交規格"| DSS
+    DSS -->|"呼叫模型"| NVIDIA_API
 ```
 
-### 🏗️ DSS 系統架構（v1.2.0）
+### L2｜容器架構（Container）
+> 系統內部可獨立部署的單元組成
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    cli.py (互動式入口)                   │
-│   [1] 新增審查  [2] 查歷史  [3] 知識庫  [Q] 退出         │
-│              Rich + Questionary 美化介面                 │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-        ▼                  ▼                  ▼
-┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-│  engine/      │  │  knowledge/   │  │  db/          │
-│  loader.py    │  │  roles/       │  │  history.db   │
-│  (載入模組)   │  │  standards/   │  │  (SQLite)     │
-│  fallback 機制 │  │  risk_templates│ └───────────────┘
-│  +4 工具函數   │  │  ✅ Phase B    │
-└───────┬───────┘  └───────────────┘
-        │
-        ▼
-┌─────────────────────────────────────────────────────────┐
-│        design_decision_engine.py (核心引擎)              │
-│   ┌─────────────────────────────────────────────────┐   │
-│   │ Risk-Analyst (DeepSeek-V3.2)                    │   │
-│   │ Completeness-Reviewer (Qwen3.5-397B)            │   │
-│   │ Improvement-Advisor (Mistral Large 2)           │   │
-│   └─────────────────────────────────────────────────┘   │
-│                    ↓ Aggregator                         │
-│   ┌─────────────────────────────────────────────────┐   │
-│   │ Nemotron-Ultra 253B (最終裁決）                  │   │
-│   │ ⚙️ Timeout 300s + 重試機制 2 次                   │   │
-│   └─────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph Frontend["前端層"]
+        CLI["CLI Interface\nRich + Questionary 互動介面"]
+        WebUI["Web Server\nFastAPI + Jinja2 模板"]
+    end
+    subgraph Backend["後端層"]
+        Engine["Review Engine\n多專家審查核心"]
+        TaskQueue["Task Queue\n非同步任務管理"]
+    end
+    subgraph Storage["儲存層"]
+        DB[("Database\nSQLite/PostgreSQL")]
+        Knowledge[("Knowledge Base\nJSON 角色設定檔")]
+    end
+    CLI -->|"執行審查"| Engine
+    WebUI -->|"提交任務"| TaskQueue
+    TaskQueue -->|"執行審查"| Engine
+    Engine -->|"載入角色"| Knowledge
+    Engine -->|"儲存結果"| DB
+    CLI -->|"查詢歷史"| DB
+    WebUI -->|"查詢狀態"| DB
 ```
 
-**架構層次說明**:
-1. **CLI 層** (`cli.py`) - 使用者互動介面
-2. **支撐層** (`engine/`, `knowledge/`, `db/`) - 知識庫載入 + 歷史記錄
-3. **引擎層** (`design_decision_engine.py`) - 多專家審查核心（保持不變）
+### L3｜元件結構（Component）
+> 各容器內部模組組成與依賴關係
+
+#### L3-1：CLI 介面層
+```mermaid
+graph LR
+    subgraph CLI_Layer["CLI 介面層"]
+        MainMenu["cli.py\n主選單與使用者互動"]
+        ReviewRunner["review_runner()\n執行審查流程"]
+        HistoryViewer["history_viewer()\n顯示歷史記錄"]
+    end
+    subgraph Support["支撐模組"]
+        Loader["engine/loader.py\n知識庫載入與 fallback"]
+        Repository["db/repository.py\n資料存取封裝"]
+    end
+    MainMenu -->|"選擇功能"| ReviewRunner
+    MainMenu -->|"選擇功能"| HistoryViewer
+    ReviewRunner -->|"載入角色"| Loader
+    ReviewRunner -->|"儲存結果"| Repository
+    HistoryViewer -->|"查詢記錄"| Repository
+```
+
+#### L3-2：Web 介面層
+```mermaid
+graph LR
+    subgraph Web_Frontend["Web 前端"]
+        Templates["templates/*.html\nJinja2 模板頁面"]
+        StaticFiles["static/css, js\n靜態資源"]
+    end
+    subgraph Web_Backend["Web 後端"]
+        FastAPI_App["web/main.py\nFastAPI 應用程式"]
+        TaskQueue["engine/task_queue.py\n任務佇列管理"]
+    end
+    subgraph Data_Access["資料存取"]
+        Models["db/models.py\nSQLAlchemy ORM"]
+        Repository["db/repository.py\nRepository Pattern"]
+    end
+    Templates -->|"渲染頁面"| FastAPI_App
+    StaticFiles -->|"提供資源"| FastAPI_App
+    FastAPI_App -->|"提交任務"| TaskQueue
+    FastAPI_App -->|"查詢狀態"| Repository
+    TaskQueue -->|"儲存任務"| Models
+    Repository -->|"操作資料"| Models
+```
+
+#### L3-3：核心審查引擎
+```mermaid
+graph LR
+    subgraph Core_Engine["核心審查引擎"]
+        DecisionEngine["design_decision_engine.py\n四位專家協調與裁決"]
+        PromptBuilder["build_prompt()\n生成角色專屬 prompt"]
+        ResultMerger["merge_results()\n合併專家輸出"]
+        Aggregator["Aggregator\n最終裁決與 sanity check"]
+    end
+    subgraph External_Deps["外部依賴"]
+        OpenAI_Client["OpenAI Client\nNVIDIA API 連線"]
+        RoleLoader["engine/loader.py\n載入 JSON 角色設定"]
+    end
+    DecisionEngine -->|"建立 client"| OpenAI_Client
+    DecisionEngine -->|"載入角色"| RoleLoader
+    DecisionEngine -->|"建構 prompt"| PromptBuilder
+    DecisionEngine -->|"合併結果"| ResultMerger
+    DecisionEngine -->|"最終裁決"| Aggregator
+```
+
+### L4｜核心類別（Code）
+> 關鍵 class 的繼承與組合關係
+
+本專案無複雜繼承結構，省略此層。
+
+### 核心資料流
+> 最重要使用場景的完整呼叫鏈
+
+```mermaid
+sequenceDiagram
+    participant U as 工程師
+    participant C as CLI/Web UI
+    participant E as Review Engine
+    participant L as Role Loader
+    participant A as NVIDIA API
+    participant D as Database
+    
+    U->>C: 提交設計規格
+    C->>E: 啟動審查流程
+    E->>L: 載入四位專家角色
+    L-->>E: 回傳角色設定
+    
+    loop 每位專家
+        E->>A: 呼叫 AI 模型審查
+        A-->>E: 回傳 JSON 結果
+    end
+    
+    E->>E: 合併專家結果
+    E->>A: Aggregator 最終裁決
+    A-->>E: 回傳整合報告
+    
+    E->>D: 儲存審查結果
+    D-->>E: 確認儲存
+    E-->>C: 回傳最終報告
+    C-->>U: 顯示審查結果
+```
+
+### 架構說明
+
+#### 🏗 系統核心設計概念
+
+DSS 採用**分層架構**與**關注點分離**原則，將使用者介面（CLI/Web）、業務邏輯（Review Engine）、資料存取（Repository）明確區隔。核心引擎透過**知識庫外部化**實現靈活的專家角色配置，並提供**雙重介面**（CLI 適合自動化腳本，Web UI 適合團隊協作）。
+
+#### 📦 各層職責分工
+
+- **CLI Interface** (`cli.py`) - 互動式命令列介面，提供選單導航與即時回饋
+- **Web Server** (`web/main.py`) - FastAPI 應用程式，支援非同步任務與即時狀態查詢
+- **Review Engine** (`design_decision_engine.py`) - 四位專家協調、prompt 建構、結果合併與最終裁決
+- **Task Queue** (`engine/task_queue.py`) - 非同步任務管理，支援進度追蹤與錯誤處理
+- **Role Loader** (`engine/loader.py`) - 從 JSON 載入專家角色設定，提供 fallback 機制
+- **Repository** (`db/repository.py`) - 資料存取抽象層，支援 SQLite/PostgreSQL 雙後端
+- **ORM Models** (`db/models.py`) - SQLAlchemy 模型定義，處理資料庫 schema
+- **Knowledge Base** (`knowledge/roles/*.json`) - 外部化專家角色設定，易於維護與擴展
+
+#### 🔄 核心資料流說明
+
+1. **使用者提交規格** → CLI 或 Web UI 接收輸入
+2. **啟動審查流程** → Review Engine 載入四位專家角色設定
+3. **平行呼叫 AI 模型** → Risk-Analyst、Completeness-Reviewer、Improvement-Advisor 同時審查
+4. **合併專家結果** → 去重、排序、整理各專家輸出
+5. **Aggregator 最終裁決** → Nemotron-Ultra 整合所有意見並解決衝突
+6. **儲存至資料庫** → 透過 Repository Pattern 寫入 SQLite/PostgreSQL
+7. **回傳最終報告** → 顯示風險評估、缺失項目、改善建議與亮點
+
+#### 💡 設計模式與亮點
+
+- **Repository Pattern** ([`db/repository.py`](db/repository.py)) - 抽象化資料存取，支援多種資料庫後端
+- **Fallback Mechanism** ([`engine/loader.py:14-36`](engine/loader.py#L14-L36)) - 內建角色設定備援，確保系統穩定性
+- **Dependency Injection** ([`design_decision_engine.py:8-14`](design_decision_engine.py#L8-L14)) - `get_client()` 延遲初始化，避免 import 時依賴 API key
+- **Async Task Queue** ([`engine/task_queue.py`](engine/task_queue.py)) - ThreadPoolExecutor + asyncio 實現非同步審查
+- **Externalized Configuration** ([`knowledge/roles/*.json`](knowledge/roles/)) - 專家角色抽離為 JSON，無需修改程式碼即可調整
+- **Dual Interface** - CLI 與 Web UI 共用底層引擎，保持一致性
+
+#### ⚠️ 發現的問題（必填）
+
+【🟡 警告】[`web/main.py:20`](web/main.py#L20)
+  問題：使用 `sys.path.insert()` 硬編碼模組搜尋路徑
+  影響：在不同部署環境（Docker、虛擬環境）導致模組找不到
+  建議：改用 proper package structure + `__init__.py`，或設定 `PYTHONPATH` 環境變數
+
+【🟡 警告】[`db/models.py:37-38`](db/models.py#L37-L38)
+  問題：在模組層級全域初始化 database engine，import 時即執行
+  影響：測試時無法 mock，造成測試隔離性問題
+  建議：改為 lazy initialization 或 dependency injection pattern
+
+【🟡 警告】[`design_decision_engine.py:16-50`](design_decision_engine.py#L16-L50)
+  問題：SPEC 常數硬編碼測試規格在程式碼中
+  影響：每次審查不同專案都需要修改原始碼，違反開閉原則
+  建議：改為從檔案讀取或接受命令列參數輸入
+
+【🟡 警告】[`cli.py`](cli.py)（566 行）
+  問題：單一檔案過大，包含選單、審查執行、知識庫管理等多重職責
+  影響：違反單一職責原則（SRP），難以維護與測試
+  建議：拆分為 `cli/menu.py`, `cli/review_runner.py`, `cli/knowledge_manager.py`
+
+【🟡 警告】[`engine/task_queue.py`](engine/task_queue.py)
+  問題：任務佇列僅存在記憶體中，伺服器重啟後狀態遺失
+  影響：長期運行的 Web 服務若重啟，進行中的任務狀態丟失
+  建議：將任務狀態持久化至資料庫或 Redis
 
 ---
 

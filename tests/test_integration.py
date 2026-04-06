@@ -11,7 +11,7 @@ async def test_full_system_flow():
     queue = TaskQueue(max_workers=1)
     await queue.start()
 
-    with patch("engine.loader.review_project", return_value={"risks": [{"level": "high", "issue": "x"}], "verdict": "Integration Test"}):
+    with patch("design_decision_engine.review_project", return_value={"risks": [{"level": "high", "issue": "x"}], "verdict": "Integration Test"}):
         task_id = await queue.submit_task("End-to-End Alpha", "Project Spec Data")
         
         # Wait for the task to be completed

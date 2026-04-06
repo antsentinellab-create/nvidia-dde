@@ -2,6 +2,7 @@ import os
 from openai import OpenAI
 import time
 import json
+from typing import Dict
 from engine.loader import load_roles as _load_roles
 
 def get_client():
@@ -339,6 +340,7 @@ if __name__ == '__main__':
 
 
 def review_project(specification: str) -> Dict:
+    load_roles = _load_roles
     """
     審查專案規格
     

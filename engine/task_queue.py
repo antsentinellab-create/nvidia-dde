@@ -220,8 +220,8 @@ class TaskQueue:
             
             # 呼叫實際的審查引擎
             log_progress(task.current_stage, 100, "🔍 呼叫 AI 審查引擎...")
-            from design_decision_engine import review_project
-            result = review_project(task.specification)
+            import design_decision_engine as _dde
+            result = _dde.review_project(task.specification)
             
             log_progress(task.current_stage, 100, f"✅ 審查完成！風險:{len(result.get('risks', []))} 缺失:{len(result.get('missing', []))} 建議:{len(result.get('improvements', []))} 優點:{len(result.get('good_points', []))}")
             

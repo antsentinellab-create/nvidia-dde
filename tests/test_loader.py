@@ -12,9 +12,9 @@ from engine.loader import (
     load_risk_templates, 
     save_risk_template,
     get_knowledge_base_path,
-    BUILTIN_ROLES,
-    review_project
+    BUILTIN_ROLES
 )
+from design_decision_engine import review_project
 
 
 @pytest.fixture
